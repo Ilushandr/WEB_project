@@ -3,7 +3,6 @@ from flask_wtf import FlaskForm
 from werkzeug.utils import redirect
 from wtforms import StringField, SubmitField, PasswordField
 from wtforms.validators import DataRequired
-from data.kgs import KGS
 from data.GameReview import Reviewer
 
 
