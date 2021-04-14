@@ -1,13 +1,15 @@
 import string
 import random
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
+from flask_restful import Api
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_socketio import SocketIO, emit, join_room, leave_room
+
 from data import db_session
 from data.users import User
 from data.users_resource import UsersResource, UsersListResource
 from data import db_session
-from flask import Flask, render_template, redirect, make_response, jsonify, session, request
-from flask_restful import Api
-from flask_login import LoginManager, login_user, login_required, logout_user
-from flask_socketio import SocketIO, emit, join_room
+
 from forms.user import LoginForm, RegisterForm
 
 app = Flask(__name__)
@@ -33,18 +35,14 @@ def not_found(error):
 
 @login_manager.user_loader
 def load_user(user_id):
-    db_sess = db_session.create_session()
-    return db_sess.query(User).get(user_id)
+    db = db_session.create_session()
+    return db.query(User).get(user_id)
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    db_sess = db_session.create_session()
-    if request.method == "POST":
-        lobby_id = keygen(16)
-    # jobs = db_sess.query(Jobs).all()
-    user = {u.id: "".join((u.name)) for u in db_sess.query(User).all()}
-    return render_template('index.html', jobs=[], user=user)
+    lobby_id = current_user.lobby_id if current_user.is_authenticated else None
+    return render_template('index.html', lobby_id=lobby_id)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -54,7 +52,7 @@ def login():
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.email == form.email.data).first()
         if user and user.check_password(form.password.data):
-            user_manager = login_user(user, remember=form.remember_me.data)
+            login_user(user, remember=form.remember_me.data)
             return redirect("/")
         return render_template('login.html',
                                message="Неправильный логин или пароль",
@@ -87,15 +85,48 @@ def reqister():
             email=form.email.data,
         )
         user.set_password(form.password.data)
+
         db_sess.add(user)
         db_sess.commit()
         return redirect('/login')
     return render_template('register.html', title='Регистрация', form=form)
 
 
-@socketio.on('my event')
-def handle_my_custom_event(json):
-    print('received json: ' + str(json))
+@socketio.on('create_lobby')
+def create_lobby():
+    db = db_session.create_session()
+
+    lobby_id = keygen(16)
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    usr.lobby_id = lobby_id
+    db.commit()
+    join_room(lobby_id)
+
+    emit("refresh")
+
+
+@socketio.on('leave_lobby')
+def leave_lobby():
+    db = db_session.create_session()
+
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    leave_room(usr.lobby_id)
+    usr.lobby_id = None
+    db.commit()
+
+    emit("refresh")
+
+@socketio.on('join_lobby')
+def join_lobby(data):
+    db = db_session.create_session()
+
+    lobby_id = data["code"]
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    usr.lobby_id = lobby_id
+    db.commit()
+    join_room(lobby_id)
+
+    emit("refresh")
 
 
 def main():
