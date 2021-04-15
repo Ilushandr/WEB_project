@@ -1,6 +1,6 @@
 import string
 import random
-from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -115,6 +115,7 @@ def leave_lobby():
 
     emit("refresh")
 
+
 @socketio.on('join_lobby')
 def join_lobby(data):
     db = db_session.create_session()
@@ -127,6 +128,7 @@ def join_lobby(data):
 
     emit("refresh")
 
+
 @app.route('/game/<int:size>')
 def game(size):
     # Запускаем игру, так сказать
@@ -135,9 +137,9 @@ def game(size):
     return render_template('game.html', title='Игра', size=size)
 
 
-@app.route('/move', methods=['POST'])
-def move():
-    move = request.form['move']
+@socketio.on('move')
+def move(message):
+    move = message['move']
     if move != '':
         # Апдейтим карту, если юзер сходил
         y, x = list(map(int, move.split('-')))
@@ -146,7 +148,7 @@ def move():
         # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
         session['game'] = Game.get_updated_game(session['game'], move='pass')
 
-    return jsonify({'success': 'OK'})
+    emit('moved', {'success': 'OK'})
 
 
 def main():
