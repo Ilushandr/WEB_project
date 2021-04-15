@@ -1,0 +1,26 @@
+#board-container {
+    position: absolute;
+    text-align: center;
+}
+
+#board-pic {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+}
+.centered {
+    display: inline-block;
+
+}
+
+.game-board {
+    border-spacing: 0;
+    border-collapse: collapse;
+}
+
+.game-board td {
+    background: #a78a48;
+    border: 2px solid;
+    text-align: center;
+    vertical-align: middle;
+}
