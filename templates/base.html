@@ -18,15 +18,25 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js"
             integrity="sha384-vBWWzlZJ8ea9aCX4pEW3\rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn"
             crossorigin="anonymous"></script>
-<!--    <script type="text/javascript" charset="utf-8">-->
-<!--        var socket = io();-->
-<!--        socket.emit('my event', {data: 'I\'m connected!'});-->
-<!--    </script>-->
 
     <title>{{ title }}</title>
 </head>
 <body>
-{% block content %}{% endblock %}
-<script src="/static/js/game_board.js"></script>
+    <header>
+        <nav class="navbar navbar-light bg-light">
+            {% if current_user.is_authenticated %}
+                <a class="navbar-brand" href="/logout">{{ current_user.name }}</a>
+            {% else %}
+                <p>
+                    <a class="btn btn-primary " href="/register">Зарегистрироваться</a>
+                    <a class="btn btn-success" href="/login">Войти</a>
+                </p>
+            {% endif %}
+        </nav>
+    </header>
+    <!-- Begin page content -->
+        {% block content %}{% endblock %}
+    <script src="/static/js/game_board.js"></script>
+
 </body>
 </html>

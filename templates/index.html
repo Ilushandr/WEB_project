@@ -1,7 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
-<form method="POST">
-    <input type="submit">
-</form>
+    {% if current_user.is_authenticated %}
+        {% if lobby_id %}
+            <input type="button" value="Leave lobby" id="leave_lobby">
+            <textarea rows="20" cols="75" id="chat"></textarea>
+            <label for="lbid">Send code:</label>
+            <input type="text" name="lbid" value="{{ lobby_id }}">
+        {% else %}
+            <input type="button" value="Create lobby" id="create_lobby">
+            <br>
+            <label for="code">Type code to join lobby: </label>
+            <input type="text" name="code" id="code">
+            <input type="button" value="Join lobby" id="join_lobby">
+        {% endif %}
+    {% else %}
+        <h2>You must be authorized</h2>
+    {% endif %}
+
+
+    <script src="/static/js/lobby.js"></script>
 {% endblock %}
