@@ -12,6 +12,7 @@ from data.users_resource import UsersResource, UsersListResource
 from data import db_session
 
 from forms.user import LoginForm, RegisterForm
+import data.Game as GameBoard
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -100,7 +101,7 @@ def create_lobby():
     usr = db.query(User).filter(User.id == current_user.id).first()
     usr.lobby_id = lobby_id
     db.commit()
-    join_room(lobby_id, namespace="/")
+    join_room(lobby_id)
 
     emit("refresh")
 
@@ -110,7 +111,7 @@ def leave_lobby():
     db = db_session.create_session()
 
     usr = db.query(User).filter(User.id == current_user.id).first()
-    leave_room(usr.lobby_id, namespace="/")
+    leave_room(usr.lobby_id)
     usr.lobby_id = None
     db.commit()
 
@@ -125,7 +126,7 @@ def join_lobby(data):
     usr = db.query(User).filter(User.id == current_user.id).first()
     usr.lobby_id = lobby_id
     db.commit()
-    join_room(lobby_id, namespace="/")
+    join_room(lobby_id)
 
     emit("refresh")
 
@@ -150,6 +151,28 @@ def start_game():
     db.commit()
 
     emit("game_redirect", {"id": game.id}, broadcast=True)
+
+
+@app.route('/game/<int:size>')
+def game(size):
+    # Запускаем игру, так сказать
+    # В session['game'] пихаем словарь с доской, цветом (который щас ходит) и счетчиком
+    session['game'] = Game.init_game(size)
+    return render_template('game.html', title='Игра', size=size)
+
+
+@socketio.on('move')
+def move(message):
+    move = message['move']
+    if move != '':
+        # Апдейтим карту, если юзер сходил
+        y, x = list(map(int, move.split('-')))
+        session['game'] = Game.get_updated_game(session['game'], move=(x, y))
+    else:
+        # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
+        session['game'] = Game.get_updated_game(session['game'], move='pass')
+
+    emit('moved', {'success': 'OK'})
 
 
 def main():

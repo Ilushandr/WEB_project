@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="box" id="board-container" onload="set_size()">
+    <img id="board-pic" src="/static/img/board.png">
+    <div class="centered" id="table">
+        <table class="game-board">
+            <tbody>
+            {% for row in range(size) %}
+            <tr id="tr_{{ row }}">
+                {% for col in range(size) %}
+                <td id="td_{{ row }}_{{ col }}" role="button"
+                    onclick="make_move('{{ row }}-{{ col }}')"></td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p></p>
+    <div class="centred">
+        <button type="button" class="btn btn-dark" id="pass-btn" onclick="pass()">
+            Пропустить ход
+        </button>
+    </div>
+</div>
+
+
+{% endblock %}
