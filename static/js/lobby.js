@@ -25,12 +25,12 @@ $("#join_lobby").click(() => {
     socket.emit("join_lobby", {code: $("#code").val()});
 });
 
-$("#send_msg").click(() => {
-    socket.emit("chat_msg", {msg: $("#msg_text").val()});
+$("#send_msg").click(() => {t("chat_msg", {msg: $("#msg_text").val()});
 });
 
 $("#start_game").click(() => {
     socket.emit("start_game");
+    socket.emi
 });
 
 

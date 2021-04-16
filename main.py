@@ -8,11 +8,11 @@ from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from data import db_session
 from data.users import User
 from data.games import Game
-from data.users_resource import UsersResource, UsersListResource
-from data import db_session
 
 from forms.user import LoginForm, RegisterForm
-import data.Game as GameBoard
+
+from data.users_resource import UsersResource, UsersListResource
+from data import game_board
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -145,7 +145,8 @@ def start_game():
     players = ";".join([str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)])
 
     game = Game(lobby_id=lobby_id,
-                players=players)
+                players=players,
+                size=19)
 
     db.add(game)
     db.commit()
@@ -153,11 +154,15 @@ def start_game():
     emit("game_redirect", {"id": game.id}, broadcast=True)
 
 
-@app.route('/game/<int:size>')
-def game(size):
+@app.route('/game/<int:game_id>')
+def game(game_id):
     # Запускаем игру, так сказать
     # В session['game'] пихаем словарь с доской, цветом (который щас ходит) и счетчиком
-    session['game'] = Game.init_game(size)
+    db = db_session.create_session()
+
+    game_session = db.query(Game).get(game_id)
+    size = game_session.size
+    session['game'] = game_board.init_game(size)
     return render_template('game.html', title='Игра', size=size)
 
 
@@ -167,10 +172,10 @@ def move(message):
     if move != '':
         # Апдейтим карту, если юзер сходил
         y, x = list(map(int, move.split('-')))
-        session['game'] = Game.get_updated_game(session['game'], move=(x, y))
+        session['game'] = game_board.get_updated_game(session['game'], move=(x, y))
     else:
         # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
-        session['game'] = Game.get_updated_game(session['game'], move='pass')
+        session['game'] = game_board.get_updated_game(session['game'], move='pass')
 
     emit('moved', {'success': 'OK'})
 

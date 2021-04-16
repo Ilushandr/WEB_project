@@ -13,3 +13,5 @@ class Game(SqlAlchemyBase, UserMixin, SerializerMixin):
                            primary_key=True, autoincrement=True)
     lobby_id = sqlalchemy.Column(sqlalchemy.String)
     players = sqlalchemy.Column(sqlalchemy.String)
+
+    size = sqlalchemy.Column(sqlalchemy.Integer)
