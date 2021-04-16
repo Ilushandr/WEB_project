@@ -22,7 +22,7 @@ def change_color(color):
     return color
 
 
-def get_updated_game(game, move):
+def get_updated_game(game, move, color):
     board = game['board']
     color = game['color']
     if move != 'pass':

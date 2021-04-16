@@ -6,25 +6,23 @@ var size = path.split('/')[2]
 var board_size = Math.min(sc_width, sc_height) - 100
 var node_size = board_size / (String(+size + +'1'))
 
-var socket = io()
+socket = io.connect('http://' + document.domain + ':' + location.port + '/');
 
-socket.on('moved', function(data) {
-    // Обновляем картинку игровой доски
-    d = new Date();
-    $("#board-pic").attr("src", "/static/img/board.png?"+d.getTime());
-    var picture = document.getElementById('board-pic');
-    var padding = node_size / 2
-    picture.style.paddingRight = padding
-    picture.style.width = String(board_size) + 'px'
-    picture.style.height = String(board_size) + 'px'
+socket.on('moved', (data) => {
+    if (data.color == "white"){
+        $("#td_" + data.row + "_" + data.col).text("o")
+    } else {
+        $("#td_" + data.row + "_" + data.col).text("x")
+    }
+
 });
 
-function make_move(move) {
-            socket.emit('move', {'move': move});
-        }
+function make_move(row, col) {
+    socket.emit('make_move', {row: row, col: col});
+}
 
 function pass() {
-            socket.emit('move', {'move': ''});
+            socket.emit('move', {row: null, col: null});
         }
 
 

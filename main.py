@@ -134,6 +134,7 @@ def join_lobby(data):
 @socketio.on('chat_msg')
 def chat_msg(data):
     msg = data["msg"]
+    print(msg)
     emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
 
 
@@ -142,10 +143,10 @@ def start_game():
     db = db_session.create_session()
 
     lobby_id = current_user.lobby_id
-    players = ";".join([str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)])
+    players = [str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)]
 
     game = Game(lobby_id=lobby_id,
-                players=players,
+                players=";".join(players),
                 size=19)
 
     db.add(game)
@@ -163,21 +164,20 @@ def game(game_id):
     game_session = db.query(Game).get(game_id)
     size = game_session.size
     session['game'] = game_board.init_game(size)
+    if int(game_session.players.split(";")[0]) == current_user.id:
+        session["color"] = "white"
+    else:
+        session["color"] = "black"
+
     return render_template('game.html', title='Игра', size=size)
 
 
-@socketio.on('move')
-def move(message):
-    move = message['move']
-    if move != '':
-        # Апдейтим карту, если юзер сходил
-        y, x = list(map(int, move.split('-')))
-        session['game'] = game_board.get_updated_game(session['game'], move=(x, y))
-    else:
-        # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
-        session['game'] = game_board.get_updated_game(session['game'], move='pass')
+@socketio.on('make_move')
+def move(data):
+    r, c = data["row"], data["col"]
+    color = session.get("color")
 
-    emit('moved', {'success': 'OK'})
+    emit('moved', {"row": r, "col": c, "color": color}, broadcast=True)
 
 
 def main():
