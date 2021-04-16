@@ -44,7 +44,6 @@ def index():
     db_sess = db_session.create_session()
     if request.method == "POST":
         lobby_id = keygen(16)
-    # jobs = db_sess.query(Jobs).all()
     user = {u.id: "".join((u.name)) for u in db_sess.query(User).all()}
     return render_template('index.html', jobs=[], user=user)
 
