@@ -157,8 +157,6 @@ def start_game():
 
 @app.route('/game/<int:game_id>')
 def game(game_id):
-    # Запускаем игру, так сказать
-    # В session['game'] пихаем словарь с доской, цветом (который щас ходит) и счетчиком
     db = db_session.create_session()
 
     game_session = db.query(Game).get(game_id)
@@ -174,10 +172,17 @@ def game(game_id):
 
 @socketio.on('make_move')
 def move(data):
-    r, c = data["row"], data["col"]
-    color = session.get("color")
+    move = data['move']
+    color = session['color']
+    if move != '':
+        # Апдейтим карту, если юзер сходил
+        y, x = list(map(int, move.split('-')))
+        session['game'] = game_board.get_updated_game(session['game'], color, move=(x, y))
+    else:
+        # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
+        session['game'] = game_board.get_updated_game(session['game'], color, move='pass')
 
-    emit('moved', {"row": r, "col": c, "color": color}, broadcast=True)
+    emit('moved', {'success': 'OK'}, broadcast=True)
 
 
 def main():

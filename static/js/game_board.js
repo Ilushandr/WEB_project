@@ -2,29 +2,31 @@ var sc_width = document.documentElement.clientWidth
 var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
 
-var size = path.split('/')[2]
+var size = '19'
 var board_size = Math.min(sc_width, sc_height) - 100
 var node_size = board_size / (String(+size + +'1'))
 
 socket = io.connect('http://' + document.domain + ':' + location.port + '/');
 
-socket.on('moved', (data) => {
-    if (data.color == "white"){
-        $("#td_" + data.row + "_" + data.col).text("o")
-    } else {
-        $("#td_" + data.row + "_" + data.col).text("x")
-    }
-
+socket.on('moved', function(data) {
+    // Обновляем картинку игровой доски
+    d = new Date();
+    $("#board-pic").attr("src", "/static/img/board.png?"+d.getTime());
+    var picture = document.getElementById('board-pic');
+    var padding = node_size / 2
+    picture.style.paddingRight = padding
+    picture.style.width = String(board_size) + 'px'
+    picture.style.height = String(board_size) + 'px'
 });
 
-function make_move(row, col) {
-    socket.emit('make_move', {row: row, col: col});
-}
-
-function pass() {
-            socket.emit('move', {row: null, col: null});
+function make_move(move) {
+            console.log(move)
+            socket.emit('make_move', {'move': move});
         }
 
+function pass() {
+            socket.emit('make_move', {'move': ''});
+        }
 
 window.onload = function set_size() {
     // После загрузки страницы подстраиваем размеры

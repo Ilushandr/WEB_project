@@ -22,9 +22,8 @@ def change_color(color):
     return color
 
 
-def get_updated_game(game, move, color):
+def get_updated_game(game, color, move):
     board = game['board']
-    color = game['color']
     if move != 'pass':
         x, y = move
         board = reformat_board_to_matrix(board)
