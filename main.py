@@ -13,6 +13,7 @@ from forms.user import LoginForm, RegisterForm
 
 from data.users_resource import UsersResource, UsersListResource
 from data import game_board
+from pprint import pprint
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -163,7 +164,7 @@ def game(game_id):
 
     game_session = db.query(Game).get(game_id)
     size = game_session.size
-    session['game'] = game_board.init_game(size)
+    session['board'] = game_board.init_game(size)
     if int(game_session.players.split(";")[0]) == current_user.id:
         session["color"] = "white"
     else:
@@ -174,10 +175,22 @@ def game(game_id):
 
 @socketio.on('make_move')
 def move(data):
-    r, c = data["row"], data["col"]
+    r, c, prev_color = data["row"], data["col"], data["prev_color"]
     color = session.get("color")
 
-    emit('moved', {"row": r, "col": c, "color": color}, broadcast=True)
+    if prev_color != color:
+        if r and c:
+            session["board"], updated = game_board.get_updated_board(session.get("board"), (r, c), color)
+
+            for rows in game_board.reformat_board_to_matrix(session.get("board")):
+                print(rows)
+            print()
+            
+            emit('moved', {"row": r, "col": c, "color": color}, broadcast=True)
+        else:
+            emit("pass_move", {"color": color}, broadcast=True)
+    else:
+        emit("other_move", broadcast=True)
 
 
 def main():

@@ -6,23 +6,32 @@ SIZES = {19: 1000 / 20, 13: 1000 / 14, 9: 1000 / 10}
 
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
-    render_board([[' '] * size] * size)
-    board = {'board': [], 'color': 'white', 'counter': 0}
+    board = []
     for row in range(size):
         for col in range(size):
-            board['board'].append({'row': row, 'col': col, 'value': ' '})
+            board.append({'row': row, 'col': col, 'value': ' '})
     return board
 
 
-def change_color(color):
-    if color == 'black':
-        color = 'white'
-    else:
-        color = 'black'
-    return color
+def get_updated_board(board, move, color):
+    r, c = move
+    old_board = board.copy()
+    board = reformat_board_to_matrix(board)
+    board[r][c] = color
+    for row in range(len(board)):
+        for col in range(len(board)):
+            kill_surrounded_stones(row, col, board)
+    board = reformat_board_to_lst(board)
+
+    updated = []
+    for o, n in zip(old_board, board):
+        if o["value"] != n["value"] and (o["row"] != r or o["col"] != c):
+            updated.append(n)
+
+    return board, updated
 
 
-def get_updated_game(game, move, color):
+def get_updated_game(game, move):
     board = game['board']
     color = game['color']
     if move != 'pass':
@@ -42,7 +51,12 @@ def kill_surrounded_stones(row, col, board):
     checked = set()
     if is_surrounded(row, col, checked, board):
         for i, j in checked:
+            if board[i][j] == ' ':
+                checked.remove((i, j))
+
             board[i][j] = ' '
+
+    return checked
 
 
 def is_surrounded(row, col, checked, board):
@@ -86,26 +100,3 @@ def reformat_board_to_lst(board):
         for col in range(size):
             res_board.append({'row': row, 'col': col, 'value': board[row][col]})
     return res_board
-
-
-def render_board(board):
-    # Рисует игровую доску на данной итерации
-    img = Image.new('RGBA', (1000, 1000), '#dfbd6d')
-    idraw = ImageDraw.Draw(img)
-    node_size = padding = SIZES[len(board)]
-    stone_size = node_size * 0.75
-    for row in range(len(board)):
-        for col in range(len(board)):
-            if row < len(board) - 1 and col < len(board) - 1:
-                idraw.rectangle((padding + node_size * col,
-                                 padding + node_size * row,
-                                 padding + node_size * (col + 1),
-                                 padding + node_size * (row + 1)), outline='#a78a48', width=2)
-
-            if board[row][col] != ' ':
-                idraw.ellipse((padding + node_size * col - stone_size // 2,
-                               padding + node_size * row - stone_size // 2,
-                               padding + node_size * col + stone_size // 2,
-                               padding + node_size * row + stone_size // 2),
-                              fill=board[row][col])
-    img.save('static/img/board.png')
