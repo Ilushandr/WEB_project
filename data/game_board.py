@@ -25,7 +25,7 @@ def get_updated_board(board, move, color):
 
     updated = []
     for o, n in zip(old_board, board):
-        if o["value"] != n["value"] and (o["row"] != r or o["col"] != c):
+        if o["value"] != n["value"]:
             updated.append(n)
 
     return board, updated

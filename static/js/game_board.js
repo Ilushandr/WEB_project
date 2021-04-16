@@ -2,14 +2,18 @@ var prev_color = "black";
 
 socket = io.connect('http://' + document.domain + ':' + location.port + '/');
 
-socket.on('moved', (data) => {
+socket.on('updated', (data) => {
     prev_color = data.color;
-    if (data.color == "white"){
-        $("#td_" + data.row + "_" + data.col).text("o");
-    } else {
-        $("#td_" + data.row + "_" + data.col).text("x");
-    }
 
+    data.events.forEach(function(item, i, arr) {
+        if (item.value == "white"){
+            $("#td_" + item.row + "_" + item.col).text("o");
+        } else if (item.value == "black"){
+            $("#td_" + item.row + "_" + item.col).text("x");
+        } else {
+            $("#td_" + item.row + "_" + item.col).text("");
+        }
+    });
 });
 
 socket.on('other_move', () => {

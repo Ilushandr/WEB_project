@@ -24,6 +24,8 @@ api = Api(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+boards = {}
+
 
 def keygen(l):
     alphabet = string.ascii_letters + string.digits
@@ -164,7 +166,8 @@ def game(game_id):
 
     game_session = db.query(Game).get(game_id)
     size = game_session.size
-    session['board'] = game_board.init_game(size)
+    boards[game_id] = game_board.init_game(size)
+    session["game_id"] = game_id
     if int(game_session.players.split(";")[0]) == current_user.id:
         session["color"] = "white"
     else:
@@ -180,13 +183,11 @@ def move(data):
 
     if prev_color != color:
         if r and c:
-            session["board"], updated = game_board.get_updated_board(session.get("board"), (r, c), color)
-
-            for rows in game_board.reformat_board_to_matrix(session.get("board")):
-                print(rows)
-            print()
+            boards[session.get("game_id")], updated = game_board.get_updated_board(
+                boards[session.get("game_id")],
+                (r, c), color)
             
-            emit('moved', {"row": r, "col": c, "color": color}, broadcast=True)
+            emit('updated', {"color": color, "events": updated}, broadcast=True)
         else:
             emit("pass_move", {"color": color}, broadcast=True)
     else:
