@@ -4,7 +4,12 @@
     {% if current_user.is_authenticated %}
         {% if lobby_id %}
             <input type="button" value="Leave lobby" id="leave_lobby">
+            <input type="button" value="Start game" id="start_game">
             <textarea rows="20" cols="75" id="chat"></textarea>
+            <br>
+            <input type="text" id="msg_text">
+            <input type="button" value="Send" id="send_msg">
+            <br>
             <label for="lbid">Send code:</label>
             <input type="text" name="lbid" value="{{ lobby_id }}">
         {% else %}

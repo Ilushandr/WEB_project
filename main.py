@@ -3,10 +3,11 @@ import random
 from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 
 from data import db_session
 from data.users import User
+from data.games import Game
 from data.users_resource import UsersResource, UsersListResource
 from data import db_session
 
@@ -80,10 +81,9 @@ def reqister():
             return render_template('register.html', title='Регистрация',
                                    form=form,
                                    message="Такой пользователь уже есть")
-        user = User(
-            name=form.name.data,
-            email=form.email.data,
-        )
+
+        user = User(name=form.name.data,
+                    email=form.email.data)
         user.set_password(form.password.data)
 
         db_sess.add(user)
@@ -100,7 +100,7 @@ def create_lobby():
     usr = db.query(User).filter(User.id == current_user.id).first()
     usr.lobby_id = lobby_id
     db.commit()
-    join_room(lobby_id)
+    join_room(lobby_id, namespace="/")
 
     emit("refresh")
 
@@ -110,11 +110,12 @@ def leave_lobby():
     db = db_session.create_session()
 
     usr = db.query(User).filter(User.id == current_user.id).first()
-    leave_room(usr.lobby_id)
+    leave_room(usr.lobby_id, namespace="/")
     usr.lobby_id = None
     db.commit()
 
     emit("refresh")
+
 
 @socketio.on('join_lobby')
 def join_lobby(data):
@@ -124,9 +125,31 @@ def join_lobby(data):
     usr = db.query(User).filter(User.id == current_user.id).first()
     usr.lobby_id = lobby_id
     db.commit()
-    join_room(lobby_id)
+    join_room(lobby_id, namespace="/")
 
     emit("refresh")
+
+
+@socketio.on('chat_msg')
+def chat_msg(data):
+    msg = data["msg"]
+    emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
+
+
+@socketio.on('start_game')
+def start_game():
+    db = db_session.create_session()
+
+    lobby_id = current_user.lobby_id
+    players = ";".join([str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)])
+
+    game = Game(lobby_id=lobby_id,
+                players=players)
+
+    db.add(game)
+    db.commit()
+
+    emit("game_redirect", {"id": game.id}, broadcast=True)
 
 
 def main():
