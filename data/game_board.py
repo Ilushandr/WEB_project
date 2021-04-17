@@ -25,6 +25,7 @@ def change_color(color):
 
 def get_updated_game(game, color, move):
     board = game['board']
+
     if move != 'pass':
         x, y = move
         board = reformat_board_to_matrix(board)
