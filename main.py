@@ -1,6 +1,9 @@
 import string
 import random
-from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
+from pprint import pprint
+
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request, \
+    url_for
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -22,6 +25,9 @@ api = Api(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+GAMES = {}
+BOARDS = {}
 
 
 def keygen(l):
@@ -161,7 +167,9 @@ def game(game_id):
 
     game_session = db.query(Game).get(game_id)
     size = game_session.size
-    session['game'] = game_board.init_game(size)
+    GAMES[game_id] = game_board.init_game(size)
+
+    session["game_id"] = game_id
     if int(game_session.players.split(";")[0]) == current_user.id:
         session["color"] = "white"
     else:
@@ -172,17 +180,22 @@ def game(game_id):
 
 @socketio.on('make_move')
 def move(data):
+    prev_color = data["prev_color"]
     move = data['move']
-    color = session['color']
-    if move != '':
-        # Апдейтим карту, если юзер сходил
-        y, x = list(map(int, move.split('-')))
-        session['game'] = game_board.get_updated_game(session['game'], color, move=(x, y))
-    else:
-        # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
-        session['game'] = game_board.get_updated_game(session['game'], color, move='pass')
+    color = session["color"]
 
-    emit('moved', {'success': 'OK'}, broadcast=True)
+    if prev_color != color:
+        if move != '':
+            y, x = list(map(int, move.split('-')))
+            GAMES[session.get("game_id")] = game_board.get_updated_game(
+                GAMES[session.get("game_id")],  color,
+                move=(x, y))
+        else:
+            GAMES[session.get("game_id")] = game_board.get_updated_game(
+                GAMES[session.get("game_id")], color,
+                move='pass')
+
+    emit('moved', {'color': color}, broadcast=True)
 
 
 def main():
