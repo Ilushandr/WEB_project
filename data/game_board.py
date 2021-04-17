@@ -3,12 +3,13 @@ from copy import deepcopy
 
 STONES = {'black': 'X', 'white': 'O'}
 SIZES = {19: 1000 / 20, 13: 1000 / 14, 9: 1000 / 10}
+REVERSE_COLOR = {'black': 'white', 'white': 'black'}
 
 
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
     render_board([[' '] * size] * size)
-    board = {'board': [], 'counter': 0}
+    board = {'board': [], 'score': {'black': 0, 'white': 0}, 'counter': 0}
     for row in range(size):
         for col in range(size):
             board['board'].append({'row': row, 'col': col, 'value': ' '})
@@ -25,25 +26,36 @@ def change_color(color):
 
 def get_updated_game(game, color, move):
     board = game['board']
-
     if move != 'pass':
         x, y = move
         board = reformat_board_to_matrix(board)
         board[y][x] = color
+        # Сначала удаляет камни противоположного цвета, если они окружены
+        score = 0
         for row in range(len(board)):
             for col in range(len(board)):
-                kill_surrounded_stones(row, col, board)
+                score = kill_surrounded_stones(row, col, board, color)
+                game['score'][color] += score
+        # Потом уже проверяет союзные камни
+        score = 0
+        for row in range(len(board)):
+            for col in range(len(board)):
+                score = kill_surrounded_stones(row, col, board, REVERSE_COLOR[color])
+                game['score'][REVERSE_COLOR[color]] += score
         render_board(board)
         board = reformat_board_to_lst(board)
-    return {'board': board, 'color': change_color(color), 'counter': game['counter'] + 1}
+    return {'board': board, 'score': game['score'], 'counter': game['counter'] + 1}
 
 
-def kill_surrounded_stones(row, col, board):
-    # Уничтожает камни, окруженные камнями противника
+def kill_surrounded_stones(row, col, board, cur_color=None):
+    # Уничтожает камни, окруженные камнями противника, и возвращает очки
     checked = set()
-    if is_surrounded(row, col, checked, board):
+    counter = 0
+    if board[row][col] != cur_color and is_surrounded(row, col, checked, board):
+        counter = len(checked)
         for i, j in checked:
             board[i][j] = ' '
+    return counter
 
 
 def is_surrounded(row, col, checked, board):

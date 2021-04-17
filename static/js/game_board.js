@@ -20,10 +20,12 @@ socket.on('moved', function(data) {
     picture.style.paddingRight = padding
     picture.style.width = String(board_size) + 'px'
     picture.style.height = String(board_size) + 'px'
+
+    document.getElementById('black-score').innerHTML = 'black: ' + data.score.black
+    document.getElementById('white-score').innerHTML = 'white: ' + data.score.white
 });
 
 function make_move(move) {
-            console.log(move)
             socket.emit('make_move', {'move': move, 'prev_color': prev_color});
         }
 

@@ -140,7 +140,6 @@ def join_lobby(data):
 @socketio.on('chat_msg')
 def chat_msg(data):
     msg = data["msg"]
-    print(msg)
     emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
 
 
@@ -183,19 +182,17 @@ def move(data):
     prev_color = data["prev_color"]
     move = data['move']
     color = session["color"]
-
     if prev_color != color:
         if move != '':
             y, x = list(map(int, move.split('-')))
             GAMES[session.get("game_id")] = game_board.get_updated_game(
-                GAMES[session.get("game_id")],  color,
+                GAMES[session.get("game_id")], color,
                 move=(x, y))
         else:
             GAMES[session.get("game_id")] = game_board.get_updated_game(
                 GAMES[session.get("game_id")], color,
                 move='pass')
-
-    emit('moved', {'color': color}, broadcast=True)
+    emit('moved', {'color': color, 'score': GAMES[session.get("game_id")]['score']}, broadcast=True)
 
 
 def main():
