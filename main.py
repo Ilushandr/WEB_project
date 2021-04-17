@@ -1,20 +1,22 @@
 import string
 import random
-from pprint import pprint
-from socket import SocketIO
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
+from flask_restful import Api
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
+
 from data import db_session
 from data.users import User
-from data.users_resource import UsersResource, UsersListResource
-from data import db_session
-from flask import Flask, render_template, redirect, make_response, jsonify, request, session
-from flask_restful import Api
-from flask_login import LoginManager, login_user, login_required, logout_user
+from data.games import Game
+
 from forms.user import LoginForm, RegisterForm
-import data.Game as Game
+
+from data.users_resource import UsersResource, UsersListResource
+from data import game_board
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
-# socketio = SocketIO(app)
+socketio = SocketIO(app)
 
 api = Api(app)
 
@@ -35,17 +37,14 @@ def not_found(error):
 
 @login_manager.user_loader
 def load_user(user_id):
-    db_sess = db_session.create_session()
-    return db_sess.query(User).get(user_id)
+    db = db_session.create_session()
+    return db.query(User).get(user_id)
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    db_sess = db_session.create_session()
-    if request.method == "POST":
-        lobby_id = keygen(16)
-    user = {u.id: "".join((u.name)) for u in db_sess.query(User).all()}
-    return render_template('index.html', jobs=[], user=user)
+    lobby_id = current_user.lobby_id if current_user.is_authenticated else None
+    return render_template('index.html', lobby_id=lobby_id)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -55,7 +54,7 @@ def login():
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.email == form.email.data).first()
         if user and user.check_password(form.password.data):
-            user_manager = login_user(user, remember=form.remember_me.data)
+            login_user(user, remember=form.remember_me.data)
             return redirect("/")
         return render_template('login.html',
                                message="Неправильный логин или пароль",
@@ -83,42 +82,107 @@ def reqister():
             return render_template('register.html', title='Регистрация',
                                    form=form,
                                    message="Такой пользователь уже есть")
-        user = User(
-            name=form.name.data,
-            email=form.email.data,
-        )
+
+        user = User(name=form.name.data,
+                    email=form.email.data)
         user.set_password(form.password.data)
+
         db_sess.add(user)
         db_sess.commit()
         return redirect('/login')
     return render_template('register.html', title='Регистрация', form=form)
 
 
-# @socketio.on('my event')
-# def handle_my_custom_event(json):
-#     print('received json: ' + str(json))
+@socketio.on('create_lobby')
+def create_lobby():
+    db = db_session.create_session()
+
+    lobby_id = keygen(16)
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    usr.lobby_id = lobby_id
+    db.commit()
+    join_room(lobby_id)
+
+    emit("refresh")
 
 
-@app.route('/game/<int:size>')
-def game(size):
-    # Запускаем игру, так сказать
-    # В session['game'] пихаем словарь с доской, цветом (который щас ходит) и счетчиком
-    session['game'] = Game.init_game(size)
+@socketio.on('leave_lobby')
+def leave_lobby():
+    db = db_session.create_session()
+
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    leave_room(usr.lobby_id)
+    usr.lobby_id = None
+    db.commit()
+
+    emit("refresh")
+
+
+@socketio.on('join_lobby')
+def join_lobby(data):
+    db = db_session.create_session()
+
+    lobby_id = data["code"]
+    usr = db.query(User).filter(User.id == current_user.id).first()
+    usr.lobby_id = lobby_id
+    db.commit()
+    join_room(lobby_id)
+
+    emit("refresh")
+
+
+@socketio.on('chat_msg')
+def chat_msg(data):
+    msg = data["msg"]
+    print(msg)
+    emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
+
+
+@socketio.on('start_game')
+def start_game():
+    db = db_session.create_session()
+
+    lobby_id = current_user.lobby_id
+    players = [str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)]
+
+    game = Game(lobby_id=lobby_id,
+                players=";".join(players),
+                size=19)
+
+    db.add(game)
+    db.commit()
+
+    emit("game_redirect", {"id": game.id}, broadcast=True)
+
+
+@app.route('/game/<int:game_id>')
+def game(game_id):
+    db = db_session.create_session()
+
+    game_session = db.query(Game).get(game_id)
+    size = game_session.size
+    session['game'] = game_board.init_game(size)
+    if int(game_session.players.split(";")[0]) == current_user.id:
+        session["color"] = "white"
+    else:
+        session["color"] = "black"
+
     return render_template('game.html', title='Игра', size=size)
 
 
-@app.route('/move', methods=['POST'])
-def move():
-    move = request.form['move']
+@socketio.on('make_move')
+def move(data):
+    move = data['move']
+    color = session['color']
     if move != '':
         # Апдейтим карту, если юзер сходил
         y, x = list(map(int, move.split('-')))
-        session['game'] = Game.get_updated_game(session['game'], move=(x, y))
+        session['game'] = game_board.get_updated_game(session['game'], color, move=(x, y))
     else:
         # Если юзер пропустил ход, то просто менеям цвет (игрока то бишь)
-        session['game'] = Game.get_updated_game(session['game'], move='pass')
+        session['game'] = game_board.get_updated_game(session['game'], color, move='pass')
 
-    return jsonify({'success': 'OK'})
+    emit('moved', {'success': 'OK'}, broadcast=True)
 
 
 def main():
@@ -127,7 +191,7 @@ def main():
     api.add_resource(UsersListResource, "/api/v2/users")
     api.add_resource(UsersResource, "/api/v2/users/<int:user_id>")
 
-    app.run("127.0.0.1", 80)
+    socketio.run(app, "127.0.0.1", 80)
 
 
 if __name__ == '__main__':
