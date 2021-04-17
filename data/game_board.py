@@ -1,4 +1,5 @@
 from PIL import Image, ImageDraw
+from copy import deepcopy
 
 STONES = {'black': 'X', 'white': 'O'}
 SIZES = {19: 1000 / 20, 13: 1000 / 14, 9: 1000 / 10}
@@ -7,7 +8,7 @@ SIZES = {19: 1000 / 20, 13: 1000 / 14, 9: 1000 / 10}
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
     render_board([[' '] * size] * size)
-    board = {'board': [], 'color': 'white', 'counter': 0}
+    board = {'board': [], 'counter': 0}
     for row in range(size):
         for col in range(size):
             board['board'].append({'row': row, 'col': col, 'value': ' '})

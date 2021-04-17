@@ -8,11 +8,14 @@ var node_size = board_size / (String(+size + +'1'))
 
 socket = io.connect('http://' + document.domain + ':' + location.port + '/');
 
+var prev_color = 'black'
+
 socket.on('moved', function(data) {
     // Обновляем картинку игровой доски
-    d = new Date();
-    $("#board-pic").attr("src", "/static/img/board.png?"+d.getTime());
-    var picture = document.getElementById('board-pic');
+    prev_color = data.color
+    d = new Date()
+    $("#board-pic").attr("src", "/static/img/board.png?"+d.getTime())
+    var picture = document.getElementById('board-pic')
     var padding = node_size / 2
     picture.style.paddingRight = padding
     picture.style.width = String(board_size) + 'px'
@@ -21,11 +24,11 @@ socket.on('moved', function(data) {
 
 function make_move(move) {
             console.log(move)
-            socket.emit('make_move', {'move': move});
+            socket.emit('make_move', {'move': move, 'prev_color': prev_color});
         }
 
 function pass() {
-            socket.emit('make_move', {'move': ''});
+            socket.emit('make_move', {'move': '', 'prev_color': prev_color});
         }
 
 window.onload = function set_size() {

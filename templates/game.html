@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="box" id="board-container" onload="set_size()">
+<div class="box" id="board-container" onload="set_size()" style="margin: 10px;">
     <img id="board-pic" src="/static/img/board.png">
     <div class="centered" id="table">
         <table class="game-board">
@@ -24,6 +24,5 @@
         </button>
     </div>
 </div>
-
 <script src="/static/js/game_board.js"></script>
 {% endblock %}
