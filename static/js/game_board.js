@@ -33,8 +33,14 @@ function pass() {
             socket.emit('make_move', {'move': '', 'prev_color': prev_color});
         }
 
-window.onload = function set_size() {
+window.onload = window.onresize = function set_size() {
+    console.log('resize')
     // После загрузки страницы подстраиваем размеры
+    sc_width = document.documentElement.clientWidth
+    sc_height = document.documentElement.clientHeight
+    board_size = Math.min(sc_width, sc_height) - 100
+    node_size = board_size / (String(+size + +'1'))
+
     var board_container = document.getElementById('board-container')
     var picture = document.getElementById('board-pic')
     var table = document.getElementById('table')

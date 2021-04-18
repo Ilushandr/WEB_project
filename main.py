@@ -27,7 +27,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 GAMES = {}
-BOARDS = {}
 
 
 def keygen(l):
@@ -166,6 +165,7 @@ def game(game_id):
 
     game_session = db.query(Game).get(game_id)
     size = game_session.size
+
     GAMES[game_id] = game_board.init_game(size)
 
     session["game_id"] = game_id
@@ -185,6 +185,8 @@ def move(data):
     if prev_color != color:
         if move != '':
             y, x = list(map(int, move.split('-')))
+            if not game_board.is_free_node(y, x, GAMES[session.get("game_id")]['board']):
+                return
             GAMES[session.get("game_id")] = game_board.get_updated_game(
                 GAMES[session.get("game_id")], color,
                 move=(x, y))

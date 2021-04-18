@@ -9,11 +9,11 @@ REVERSE_COLOR = {'black': 'white', 'white': 'black'}
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
     render_board([[' '] * size] * size)
-    board = {'board': [], 'score': {'black': 0, 'white': 0}, 'counter': 0}
+    game = {'board': [], 'score': {'black': 0, 'white': 0}, 'counter': 0}
     for row in range(size):
         for col in range(size):
-            board['board'].append({'row': row, 'col': col, 'value': ' '})
-    return board
+            game['board'].append({'row': row, 'col': col, 'value': ' '})
+    return game
 
 
 def change_color(color):
@@ -22,6 +22,13 @@ def change_color(color):
     else:
         color = 'black'
     return color
+
+
+def is_free_node(row, col, board):
+    board = reformat_board_to_matrix(board)
+    if board[row][col] == ' ':
+        return True
+    return False
 
 
 def get_updated_game(game, color, move):

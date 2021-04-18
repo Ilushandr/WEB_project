@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="box" id="board-container" onload="set_size()">
+<div class="box" id="board-container" onload="set_size()" style="margin: 10px;">
     <img id="board-pic" src="/static/img/board.png">
     <div class="centered" id="table">
         <table class="game-board">
@@ -22,18 +22,17 @@
         <table>
             <tbody>
             <tr>
-                <td id="black-score"></td>
+                <td class="text-light" id="black-score"></td>
                 <td>
                     <button type="button" class="btn btn-dark" id="pass-btn" onclick="pass()">
                         Пропустить ход
                     </button>
                 </td>
-                <td id="white-score"></td>
+                <td class="text-light" id="white-score"></td>
             </tr>
             </tbody>
         </table>
     </div>
 </div>
-
 <script src="/static/js/game_board.js"></script>
 {% endblock %}
