@@ -26,6 +26,7 @@ $("#join_lobby").click(() => {
 });
 
 $("#send_msg").click(() => {
+    console.log('send msg')
     socket.emit("chat_msg", {msg: $("#msg_text").val()});
 });;
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="box" id="board-container" onload="set_size()" style="margin: 10px;">
+<div class="box" id="board-container" onload="set_size()">
     <img id="board-pic" src="/static/img/board.png">
     <div class="centered" id="table">
         <table class="game-board">
@@ -33,6 +33,24 @@
             </tbody>
         </table>
     </div>
+
 </div>
+<div class="box" id="chat-container" onload="set_size()">
+    <table>
+        <tr>
+            <td>
+                <textarea id="chat" readonly></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td><input type="text" id="msg_text"></td>
+            <td><input class="btn btn-info text-light" type="button" value="Отправить"
+                       id="send_msg">
+            </td>
+        </tr>
+    </table>
+</div>
+
 <script src="/static/js/game_board.js"></script>
+<script src="/static/js/lobby.js"></script>
 {% endblock %}

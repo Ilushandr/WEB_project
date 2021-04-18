@@ -42,15 +42,25 @@ window.onload = window.onresize = function set_size() {
     node_size = board_size / (String(+size + +'1'))
 
     var board_container = document.getElementById('board-container')
+    var chat_container = document.getElementById('board-container')
+    var chat = document.getElementById('chat')
     var picture = document.getElementById('board-pic')
     var table = document.getElementById('table')
 
+    // Задаем размеры игровой доски
     board_container.style.width = String(board_size) + 'px'
     board_container.style.height = String(board_size) + 'px'
 
+    // Задаем отступ для игровой доски
     var padding = (sc_width - board_size) / 2
     board_container.style.marginLeft = padding + 'px'
 
+    // Задаем размеры для чата
+    chat.cols = sc_width / 50
+    chat.rows = sc_height / 50
+
+
+    // Задаем размеры и отступ картинки доски
     var padding = node_size / 2
     picture.style.paddingRight = padding
     picture.style.width = String(board_size) + 'px'

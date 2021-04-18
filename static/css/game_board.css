@@ -1,6 +1,9 @@
 #board-container {
     position: absolute;
-    text-align: center;
+}
+
+#chat-container {
+    position: absolute;
 }
 
 #board-pic {
