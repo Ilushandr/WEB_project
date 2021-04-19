@@ -3,7 +3,7 @@ var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
 
 var size = '19'
-var board_size = Math.min(sc_width, sc_height) - 100
+var board_size = Math.min(sc_width, sc_height) - 200
 var node_size = board_size / (String(+size + +'1'))
 
 socket = io.connect('http://' + document.domain + ':' + location.port + '/');
@@ -25,6 +25,11 @@ socket.on('moved', function(data) {
     document.getElementById('white-score').innerHTML = 'white: ' + data.score.white
 });
 
+socket.on('end', function(data) {
+    console.log(data.winner)
+    document.getElementById('pass-btn').innerHTML = 'Победил ' + data.winner + '!'
+});
+
 function make_move(move) {
             socket.emit('make_move', {'move': move, 'prev_color': prev_color});
         }
@@ -33,8 +38,8 @@ function pass() {
             socket.emit('make_move', {'move': '', 'prev_color': prev_color});
         }
 
+
 window.onload = window.onresize = function set_size() {
-    console.log('resize')
     // После загрузки страницы подстраиваем размеры
     sc_width = document.documentElement.clientWidth
     sc_height = document.documentElement.clientHeight
@@ -42,8 +47,8 @@ window.onload = window.onresize = function set_size() {
     node_size = board_size / (String(+size + +'1'))
 
     var board_container = document.getElementById('board-container')
-    var chat_container = document.getElementById('board-container')
-    var chat = document.getElementById('chat')
+//    var chat_container = document.getElementById('board-container')
+//    var chat = document.getElementById('chat')
     var picture = document.getElementById('board-pic')
     var table = document.getElementById('table')
 
@@ -56,8 +61,8 @@ window.onload = window.onresize = function set_size() {
     board_container.style.marginLeft = padding + 'px'
 
     // Задаем размеры для чата
-    chat.cols = sc_width / 50
-    chat.rows = sc_height / 50
+//    chat.cols = sc_width / 50
+//    chat.rows = sc_height / 50
 
 
     // Задаем размеры и отступ картинки доски

@@ -169,10 +169,14 @@ def game(game_id):
     GAMES[game_id] = game_board.init_game(size)
 
     session["game_id"] = game_id
-    if int(game_session.players.split(";")[0]) == current_user.id:
+    players = list(map(int, game_session.players.split(";")))
+
+    if players[0] == current_user.id:
         session["color"] = "white"
+        session['enemy_name'] = db.query(User).get(players[1]).name
     else:
         session["color"] = "black"
+        session['enemy_name'] = db.query(User).get(players[0]).name
 
     return render_template('game.html', title='Игра', size=size)
 
@@ -194,7 +198,19 @@ def move(data):
             GAMES[session.get("game_id")] = game_board.get_updated_game(
                 GAMES[session.get("game_id")], color,
                 move='pass')
-    emit('moved', {'color': color, 'score': GAMES[session.get("game_id")]['score']}, broadcast=True)
+
+    result = GAMES[session.get("game_id")]['result']
+    if result:
+        if result == 'draw':
+            winner = ''
+        elif session['color'] == result['winner']:
+            winner = current_user.name
+        else:
+            winner = session['enemy_name']
+        print(winner)
+        return emit('end', {'winner': winner}, broadcast=True)
+    return emit('moved', {'color': color, 'score': GAMES[session.get("game_id")]['score']},
+                broadcast=True)
 
 
 def main():

@@ -9,7 +9,7 @@ REVERSE_COLOR = {'black': 'white', 'white': 'black'}
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
     render_board([[' '] * size] * size)
-    game = {'board': [], 'score': {'black': 0, 'white': 0}, 'counter': 0}
+    game = {'board': [], 'score': {'black': 0, 'white': 0}, 'pass_counter': 0, 'result': None}
     for row in range(size):
         for col in range(size):
             game['board'].append({'row': row, 'col': col, 'value': ' '})
@@ -31,27 +31,47 @@ def is_free_node(row, col, board):
     return False
 
 
+def is_end_of_game(game):
+    if game['pass_counter'] > 1:
+        return True
+    return False
+
+
+def get_results(game):
+    score = game['score']
+    if score['black'] == score['white']:
+        return {'result': 'draw', 'score': score}
+    winner = 'black' if score['black'] > score['white'] else 'white'
+    loser = 'black' if score['black'] < score['white'] else 'white'
+    return {'result': {'winner': winner, 'loser': loser}, 'score': score}
+
+
 def get_updated_game(game, color, move):
     board = game['board']
     if move != 'pass':
+        game['pass_counter'] = 0
         x, y = move
         board = reformat_board_to_matrix(board)
         board[y][x] = color
         # Сначала удаляет камни противоположного цвета, если они окружены
-        score = 0
         for row in range(len(board)):
             for col in range(len(board)):
                 score = kill_surrounded_stones(row, col, board, color)
                 game['score'][color] += score
         # Потом уже проверяет союзные камни
-        score = 0
         for row in range(len(board)):
             for col in range(len(board)):
                 score = kill_surrounded_stones(row, col, board, REVERSE_COLOR[color])
                 game['score'][REVERSE_COLOR[color]] += score
         render_board(board)
         board = reformat_board_to_lst(board)
-    return {'board': board, 'score': game['score'], 'counter': game['counter'] + 1}
+    else:
+        game['pass_counter'] += 1
+
+    if is_end_of_game(game):
+        return get_results(game)
+    return {'board': board, 'score': game['score'],
+            'pass_counter': game['pass_counter'], 'result': None}
 
 
 def kill_surrounded_stones(row, col, board, cur_color=None):
