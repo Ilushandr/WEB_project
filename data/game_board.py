@@ -1,62 +1,68 @@
 from PIL import Image, ImageDraw
+from copy import deepcopy
 
 STONES = {'black': 'X', 'white': 'O'}
 SIZES = {19: 1000 / 20, 13: 1000 / 14, 9: 1000 / 10}
+REVERSE_COLOR = {'black': 'white', 'white': 'black'}
 
 
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
-    board = []
+    render_board([[' '] * size] * size)
+    game = {'board': [], 'score': {'black': 0, 'white': 0}, 'counter': 0}
     for row in range(size):
         for col in range(size):
-            board.append({'row': row, 'col': col, 'value': ' '})
-    return board
+            game['board'].append({'row': row, 'col': col, 'value': ' '})
+    return game
 
 
-def get_updated_board(board, move, color):
-    r, c = move
-    old_board = board.copy()
+def change_color(color):
+    if color == 'black':
+        color = 'white'
+    else:
+        color = 'black'
+    return color
+
+
+def is_free_node(row, col, board):
     board = reformat_board_to_matrix(board)
-    board[r][c] = color
-    for row in range(len(board)):
-        for col in range(len(board)):
-            kill_surrounded_stones(row, col, board)
-    board = reformat_board_to_lst(board)
-
-    updated = []
-    for o, n in zip(old_board, board):
-        if o["value"] != n["value"]:
-            updated.append(n)
-
-    return board, updated
+    if board[row][col] == ' ':
+        return True
+    return False
 
 
-def get_updated_game(game, move):
+def get_updated_game(game, color, move):
     board = game['board']
-    color = game['color']
     if move != 'pass':
         x, y = move
         board = reformat_board_to_matrix(board)
         board[y][x] = color
+        # Сначала удаляет камни противоположного цвета, если они окружены
+        score = 0
         for row in range(len(board)):
             for col in range(len(board)):
-                kill_surrounded_stones(row, col, board)
+                score = kill_surrounded_stones(row, col, board, color)
+                game['score'][color] += score
+        # Потом уже проверяет союзные камни
+        score = 0
+        for row in range(len(board)):
+            for col in range(len(board)):
+                score = kill_surrounded_stones(row, col, board, REVERSE_COLOR[color])
+                game['score'][REVERSE_COLOR[color]] += score
         render_board(board)
         board = reformat_board_to_lst(board)
-    return {'board': board, 'color': change_color(color), 'counter': game['counter'] + 1}
+    return {'board': board, 'score': game['score'], 'counter': game['counter'] + 1}
 
 
-def kill_surrounded_stones(row, col, board):
-    # Уничтожает камни, окруженные камнями противника
+def kill_surrounded_stones(row, col, board, cur_color=None):
+    # Уничтожает камни, окруженные камнями противника, и возвращает очки
     checked = set()
-    if is_surrounded(row, col, checked, board):
+    counter = 0
+    if board[row][col] != cur_color and is_surrounded(row, col, checked, board):
+        counter = len(checked)
         for i, j in checked:
-            if board[i][j] == ' ':
-                checked.remove((i, j))
-
             board[i][j] = ' '
-
-    return checked
+    return counter
 
 
 def is_surrounded(row, col, checked, board):
@@ -100,3 +106,26 @@ def reformat_board_to_lst(board):
         for col in range(size):
             res_board.append({'row': row, 'col': col, 'value': board[row][col]})
     return res_board
+
+
+def render_board(board):
+    # Рисует игровую доску на данной итерации
+    img = Image.new('RGBA', (1000, 1000), '#dfbd6d')
+    idraw = ImageDraw.Draw(img)
+    node_size = padding = SIZES[len(board)]
+    stone_size = node_size * 0.75
+    for row in range(len(board)):
+        for col in range(len(board)):
+            if row < len(board) - 1 and col < len(board) - 1:
+                idraw.rectangle((padding + node_size * col,
+                                 padding + node_size * row,
+                                 padding + node_size * (col + 1),
+                                 padding + node_size * (row + 1)), outline='#a78a48', width=2)
+
+            if board[row][col] != ' ':
+                idraw.ellipse((padding + node_size * col - stone_size // 2,
+                               padding + node_size * row - stone_size // 2,
+                               padding + node_size * col + stone_size // 2,
+                               padding + node_size * row + stone_size // 2),
+                              fill=board[row][col])
+    img.save('static/img/board.png')

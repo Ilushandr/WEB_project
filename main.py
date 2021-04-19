@@ -1,6 +1,9 @@
 import string
 import random
-from flask import Flask, render_template, redirect, make_response, jsonify, session, request, url_for
+from pprint import pprint
+
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request, \
+    url_for
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -13,7 +16,6 @@ from forms.user import LoginForm, RegisterForm
 
 from data.users_resource import UsersResource, UsersListResource
 from data import game_board
-from pprint import pprint
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -24,7 +26,7 @@ api = Api(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-boards = {}
+GAMES = {}
 
 
 def keygen(l):
@@ -137,7 +139,6 @@ def join_lobby(data):
 @socketio.on('chat_msg')
 def chat_msg(data):
     msg = data["msg"]
-    print(msg)
     emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
 
 
@@ -160,13 +161,13 @@ def start_game():
 
 @app.route('/game/<int:game_id>')
 def game(game_id):
-    # Запускаем игру, так сказать
-    # В session['game'] пихаем словарь с доской, цветом (который щас ходит) и счетчиком
     db = db_session.create_session()
 
     game_session = db.query(Game).get(game_id)
     size = game_session.size
-    boards[game_id] = game_board.init_game(size)
+
+    GAMES[game_id] = game_board.init_game(size)
+
     session["game_id"] = game_id
     if int(game_session.players.split(";")[0]) == current_user.id:
         session["color"] = "white"
@@ -178,20 +179,22 @@ def game(game_id):
 
 @socketio.on('make_move')
 def move(data):
-    r, c, prev_color = data["row"], data["col"], data["prev_color"]
-    color = session.get("color")
-
+    prev_color = data["prev_color"]
+    move = data['move']
+    color = session["color"]
     if prev_color != color:
-        if r and c:
-            boards[session.get("game_id")], updated = game_board.get_updated_board(
-                boards[session.get("game_id")],
-                (r, c), color)
-            
-            emit('updated', {"color": color, "events": updated}, broadcast=True)
+        if move != '':
+            y, x = list(map(int, move.split('-')))
+            if not game_board.is_free_node(y, x, GAMES[session.get("game_id")]['board']):
+                return
+            GAMES[session.get("game_id")] = game_board.get_updated_game(
+                GAMES[session.get("game_id")], color,
+                move=(x, y))
         else:
-            emit("pass_move", {"color": color}, broadcast=True)
-    else:
-        emit("other_move", broadcast=True)
+            GAMES[session.get("game_id")] = game_board.get_updated_game(
+                GAMES[session.get("game_id")], color,
+                move='pass')
+    emit('moved', {'color': color, 'score': GAMES[session.get("game_id")]['score']}, broadcast=True)
 
 
 def main():

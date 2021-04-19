@@ -1,26 +1,56 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div>
-    <div>
-        <table class="table table table-bordered">
+<div class="box" id="board-container" onload="set_size()">
+    <img id="board-pic" src="/static/img/board.png">
+    <div class="centered" id="table">
+        <table class="game-board">
+            <tbody>
             {% for row in range(size) %}
-                <tr id="tr_{{ row }}">
-                    {% for col in range(size) %}
-                        <td id="td_{{ row }}_{{ col }}" role="button"
-                            onclick="make_move({{ row }}, {{ col }})">&nbsp;</td>
-                    {% endfor %}
-                </tr>
+            <tr id="tr_{{ row }}">
+                {% for col in range(size) %}
+                <td id="td_{{ row }}_{{ col }}" role="button"
+                    onclick="make_move('{{ row }}-{{ col }}')"></td>
+                {% endfor %}
+            </tr>
             {% endfor %}
+            </tbody>
         </table>
     </div>
     <p></p>
-    <div>
-        <button type="button" class="btn btn-dark centered" id="pass-btn" onclick="pass()">
-            Пропустить ход
-        </button>
+    <div class="centred">
+        <table>
+            <tbody>
+            <tr>
+                <td class="text-light" id="black-score"></td>
+                <td>
+                    <button type="button" class="btn btn-dark" id="pass-btn" onclick="pass()">
+                        Пропустить ход
+                    </button>
+                </td>
+                <td class="text-light" id="white-score"></td>
+            </tr>
+            </tbody>
+        </table>
     </div>
+
+</div>
+<div class="box" id="chat-container" onload="set_size()">
+    <table>
+        <tr>
+            <td>
+                <textarea id="chat" readonly></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td><input type="text" id="msg_text"></td>
+            <td><input class="btn btn-info text-light" type="button" value="Отправить"
+                       id="send_msg">
+            </td>
+        </tr>
+    </table>
 </div>
 
 <script src="/static/js/game_board.js"></script>
+<script src="/static/js/lobby.js"></script>
 {% endblock %}
