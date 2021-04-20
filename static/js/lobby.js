@@ -13,6 +13,10 @@ socket.on('game_redirect', (data) => {
     location.href = "/game/" + data.id
 });
 
+socket.on('lobby_redirect', (data) => {
+    location.href = "/"
+});
+
 $("#create_lobby").click(() => {
     socket.emit("create_lobby");
 });
@@ -28,6 +32,7 @@ $("#join_lobby").click(() => {
 $("#send_msg").click(() => {
     console.log('send msg')
     socket.emit("chat_msg", {msg: $("#msg_text").val()});
+    $('#msg_text').val("")
 });;
 
 $("#start_game").click(() => {

@@ -1,55 +1,60 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="box" id="board-container" onload="set_size()">
-    <img id="board-pic" src="/static/img/board.png">
-    <div class="centered" id="table">
-        <table class="game-board">
-            <tbody>
-            {% for row in range(size) %}
-            <tr id="tr_{{ row }}">
-                {% for col in range(size) %}
-                <td id="td_{{ row }}_{{ col }}" role="button"
-                    onclick="make_move('{{ row }}-{{ col }}')"></td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <p></p>
-    <div class="centred">
-        <table>
-            <tbody>
-            <tr>
-                <td class="text-light" id="black-score">black: 0</td>
-                <td>
-                    <button type="button" class="btn btn-dark" id="pass-btn" onclick="pass()">
-                        Пропустить ход
-                    </button>
-                </td>
-                <td class="text-light" id="white-score">white: 0</td>
-            </tr>
-            </tbody>
-        </table>
-    </div>
+<div class="container">
+    <div class="row justify-content-md-center">
+        <div class="col-md-auto">
+            <h1 class="text-light" id="status">Игра началась!</h1>
+            <div class="box" id="board-container">
+                <img id="board-pic" src="/static/img/{{ game_id }}.png">
+                <div class="centered" id="table">
+                    <table class="game-board">
+                        <tbody>
+                        {% for row in range(size) %}
+                        <tr id="tr_{{ row }}">
+                            {% for col in range(size) %}
+                            <td id="td_{{ row }}_{{ col }}" role="button"
+                                onclick="make_move('{{ row }}-{{ col }}')"></td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p></p>
+            <button type="button" class="btn btn-dark" id="pass-btn"
+                    onclick="pass()">
+                Пропустить ход
+            </button>
+            <button type="button" class="btn btn-dark" id="leave-game"
+                    onclick="leave_game()">
+                Покинуть игру
+            </button>
+        </div>
+        <div class="col-md-auto">
+            <div class="container">
+                <div class="row justify-content-md-center">
+                    <div class="col-md-auto">
+                        <h1 class="text-light" id="white-score">{{ white }}: 0</h1>
+                    </div>
+                    <div class="col-md-auto">
+                        <h1 class="text-light" id="black-score">{{ black }}: 0</h1>
+                    </div>
+                </div>
+            </div>
 
+            <div class="box" id="chat-container">
+                <textarea id="chat" readonly></textarea>
+                <div class="box" id="input">
+                    <input type="text" id="msg_text">
+                    <input class="btn btn-info text-light" type="button" value="Отправить"
+                           id="send_msg">
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-<!--<div class="box" id="chat-container" onload="set_size()">-->
-<!--    <table>-->
-<!--        <tr>-->
-<!--            <td>-->
-<!--                <textarea id="chat" readonly></textarea>-->
-<!--            </td>-->
-<!--        </tr>-->
-<!--        <tr>-->
-<!--            <td><input type="text" id="msg_text"></td>-->
-<!--            <td><input class="btn btn-info text-light" type="button" value="Отправить"-->
-<!--                       id="send_msg">-->
-<!--            </td>-->
-<!--        </tr>-->
-<!--    </table>-->
-<!--</div>-->
 
 <script src="/static/js/game_board.js"></script>
 <script src="/static/js/lobby.js"></script>
