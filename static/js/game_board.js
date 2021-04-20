@@ -1,7 +1,7 @@
 var sc_width = document.documentElement.clientWidth
 var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
-
+var game_id = path.split('/')[2]
 var size = '19'
 var board_size = Math.min(sc_width, sc_height) - 200
 var node_size = board_size / (String(+size + +'1'))
@@ -12,43 +12,55 @@ var prev_color = 'black'
 
 socket.on('moved', function(data) {
     // Обновляем картинку игровой доски
+    document.getElementById('status').innerHTML = 'Ходит: ' + data.name
     prev_color = data.color
     d = new Date()
-    $("#board-pic").attr("src", "/static/img/board.png?"+d.getTime())
+    $('#board-pic').attr("src", "/static/img/" + game_id + ".png?" + d.getTime())
     var picture = document.getElementById('board-pic')
     var padding = node_size / 2
     picture.style.paddingRight = padding
     picture.style.width = String(board_size) + 'px'
     picture.style.height = String(board_size) + 'px'
 
-    document.getElementById('black-score').innerHTML = 'black: ' + data.score.black
-    document.getElementById('white-score').innerHTML = 'white: ' + data.score.white
+    black = document.getElementById('black-score')
+    black.innerHTML = black.innerHTML.split(':')[0] + ': ' +  data.score.black
+
+    white = document.getElementById('white-score')
+    white.innerHTML = white.innerHTML.split(':')[0] + ': ' + data.score.white
+
 });
 
 socket.on('end', function(data) {
     console.log(data.winner)
-    document.getElementById('pass-btn').innerHTML = 'Победил ' + data.winner + '!'
+    res = document.getElementById('status')
+    if (data.winner) {
+    res.innerHTML = 'Победил ' + data.winner + '!'
+    } else {
+    res.innerHTML = 'Ничья!'
+    }
 });
 
+function leave_game() {
+    socket.emit("leave_game");
+}
+
 function make_move(move) {
-            socket.emit('make_move', {'move': move, 'prev_color': prev_color});
-        }
+    socket.emit('make_move', {'move': move, 'prev_color': prev_color});
+}
 
 function pass() {
-            socket.emit('make_move', {'move': '', 'prev_color': prev_color});
-        }
+    socket.emit('make_move', {'move': '', 'prev_color': prev_color});
+}
 
 
 window.onload = window.onresize = function set_size() {
     // После загрузки страницы подстраиваем размеры
     sc_width = document.documentElement.clientWidth
     sc_height = document.documentElement.clientHeight
-    board_size = Math.min(sc_width, sc_height) - 100
+    board_size = Math.min(sc_width, sc_height) - 200
     node_size = board_size / (String(+size + +'1'))
 
     var board_container = document.getElementById('board-container')
-//    var chat_container = document.getElementById('board-container')
-//    var chat = document.getElementById('chat')
     var picture = document.getElementById('board-pic')
     var table = document.getElementById('table')
 
@@ -56,13 +68,13 @@ window.onload = window.onresize = function set_size() {
     board_container.style.width = String(board_size) + 'px'
     board_container.style.height = String(board_size) + 'px'
 
-    // Задаем отступ для игровой доски
-    var padding = (sc_width - board_size) / 2
-    board_container.style.marginLeft = padding + 'px'
-
     // Задаем размеры для чата
-//    chat.cols = sc_width / 50
-//    chat.rows = sc_height / 50
+    var chat = document.getElementById('chat')
+    var txt_field = document.getElementById('msg_text')
+    var send_btn = document.getElementById('send_msg')
+    chat.cols = sc_width / 25
+    chat.rows = board_size / 35
+    txt_field.size = Math.max(chat.cols - 18, 1)
 
 
     // Задаем размеры и отступ картинки доски

@@ -8,7 +8,6 @@ REVERSE_COLOR = {'black': 'white', 'white': 'black'}
 
 def init_game(size):
     # Инициализирует начало игры, возвращая словарь информацией о текущей игре
-    render_board([[' '] * size] * size)
     game = {'board': [], 'score': {'black': 0, 'white': 0}, 'pass_counter': 0, 'result': None}
     for row in range(size):
         for col in range(size):
@@ -63,7 +62,6 @@ def get_updated_game(game, color, move):
             for col in range(len(board)):
                 score = kill_surrounded_stones(row, col, board, REVERSE_COLOR[color])
                 game['score'][REVERSE_COLOR[color]] += score
-        render_board(board)
         board = reformat_board_to_lst(board)
     else:
         game['pass_counter'] += 1
@@ -128,8 +126,10 @@ def reformat_board_to_lst(board):
     return res_board
 
 
-def render_board(board):
+def render_board(board, matrix=False):
     # Рисует игровую доску на данной итерации
+    if not matrix:
+        board = reformat_board_to_matrix(board)
     img = Image.new('RGBA', (1000, 1000), '#dfbd6d')
     idraw = ImageDraw.Draw(img)
     node_size = padding = SIZES[len(board)]
@@ -148,4 +148,4 @@ def render_board(board):
                                padding + node_size * col + stone_size // 2,
                                padding + node_size * row + stone_size // 2),
                               fill=board[row][col])
-    img.save('static/img/board.png')
+    return img

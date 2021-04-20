@@ -1,11 +1,3 @@
-#board-container {
-    position: absolute;
-}
-
-#chat-container {
-    position: absolute;
-}
-
 #board-pic {
     position: absolute;
     pointer-events: none;
