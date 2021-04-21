@@ -4,6 +4,11 @@ socket.on('refresh', () => {
     location.reload();
 });
 
+socket.on('no_player', () => {
+    $('#chat').val($('#chat').val() + 'Недостаточно игроков для начала игры \n');
+    $('#chat').scrollTop($('#chat')[0].scrollHeight);
+});
+
 socket.on('put_msg', (data) => {
     $('#chat').val($('#chat').val() + data.name + ": " + data.msg + '\n');
     $('#chat').scrollTop($('#chat')[0].scrollHeight);
@@ -38,5 +43,3 @@ $("#send_msg").click(() => {
 $("#start_game").click(() => {
     socket.emit("start_game");
 });
-
-

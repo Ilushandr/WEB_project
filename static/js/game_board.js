@@ -1,8 +1,7 @@
 var sc_width = document.documentElement.clientWidth
 var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
-var game_id = path.split('/')[2]
-console.log('id ' + game_id)
+
 var size = '19'
 var board_size = Math.min(sc_width, sc_height) - 200
 var node_size = board_size / (String(+size + +'1'))
@@ -68,9 +67,6 @@ window.onload = window.onresize = function set_size() {
     // Задаем размеры игровой доски
     board_container.style.width = String(board_size) + 'px'
     board_container.style.height = String(board_size) + 'px'
-
-    // Задаем отступ для игровой доски
-    var padding = (sc_width - board_size) / 2
 
     // Задаем размеры для чата
     var chat = document.getElementById('chat')

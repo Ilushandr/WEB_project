@@ -155,8 +155,29 @@ def start_game():
 
     db.add(game)
     db.commit()
+    if len(players) == 2:
+        emit("game_redirect", {"id": game.id}, broadcast=True)
+    else:
+        emit("no_player", broadcast=True)
 
-    emit("game_redirect", {"id": game.id}, broadcast=True)
+@socketio.on('leave_game')
+def leave_game():
+    db = db_session.create_session()
+    game_session = db.query(Game).get(session['game_id'])
+    cur_players = list(map(int, game_session.players.split(";")))
+    if len(cur_players) > 1:
+        # Удаляем айдишник игрока из бд, который 1-ый выше из игры
+        cur_players.remove(current_user.id)
+        game_session.players = str(cur_players[0])
+        if GAMES[session["game_id"]]['result'] != 'end':
+            emit('end', {'winner': session['enemy_name']}, broadcast=True)
+    else:
+        # Удаляем саму игру из бд, когда выходит последний игрок
+        db.delete(game_session)
+        del GAMES[session['game_id']]
+        os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+    db.commit()
+    return emit('lobby_redirect', {'id': session['game_id']}, broadcast=False)
 
 
 @socketio.on('leave_game')
