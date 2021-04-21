@@ -160,43 +160,21 @@ def start_game():
     else:
         emit("no_player", broadcast=True)
 
+
+@socketio.on('disconnect')
 @socketio.on('leave_game')
 def leave_game():
     db = db_session.create_session()
-    game_session = db.query(Game).get(session['game_id'])
-    cur_players = list(map(int, game_session.players.split(";")))
-    if len(cur_players) > 1:
-        # Удаляем айдишник игрока из бд, который 1-ый выше из игры
-        cur_players.remove(current_user.id)
-        game_session.players = str(cur_players[0])
-        if GAMES[session["game_id"]]['result'] != 'end':
-            emit('end', {'winner': session['enemy_name']}, broadcast=True)
-    else:
-        # Удаляем саму игру из бд, когда выходит последний игрок
+    try:
+        game_session = db.query(Game).get(session['game_id'])
         db.delete(game_session)
         del GAMES[session['game_id']]
         os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
-    db.commit()
-    return emit('lobby_redirect', {'id': session['game_id']}, broadcast=False)
+        db.commit()
 
-
-@socketio.on('leave_game')
-def leave_game():
-    db = db_session.create_session()
-    game_session = db.query(Game).get(session['game_id'])
-    cur_players = list(map(int, game_session.players.split(";")))
-    if len(cur_players) > 1:
-        # Удаляем айдишник игрока из бд, который 1-ый выше из игры
-        cur_players.remove(current_user.id)
-        game_session.players = str(cur_players[0])
-        if GAMES[session["game_id"]]['result'] != 'end':
-            emit('end', {'winner': session['enemy_name']}, broadcast=True)
-    else:
-        # Удаляем саму игру из бд, когда выходит последний игрок
-        db.delete(game_session)
-        del GAMES[session['game_id']]
-        os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
-    db.commit()
+        emit('end', {'winner': session['enemy_name']}, broadcast=True)
+    except Exception:
+        pass
     return emit('lobby_redirect', {'id': session['game_id']}, broadcast=False)
 
 
@@ -259,8 +237,6 @@ def move(data):
             winner = session['enemy_name']
         GAMES[session["game_id"]]['result'] = 'end'
         return emit('end', {'winner': winner}, broadcast=True)
-
-    # Рендерим и сохраняем картинку
 
     return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
                           'name': session['enemy_name']}, broadcast=True)

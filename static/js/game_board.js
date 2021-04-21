@@ -1,7 +1,7 @@
 var sc_width = document.documentElement.clientWidth
 var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
-
+var game_id = path.split('/')[2]
 var size = '19'
 var board_size = Math.min(sc_width, sc_height) - 200
 var node_size = board_size / (String(+size + +'1'))
@@ -9,6 +9,7 @@ var node_size = board_size / (String(+size + +'1'))
 socket = io.connect('http://' + document.domain + ':' + location.port + '/');
 
 var prev_color = 'black'
+
 
 socket.on('moved', function(data) {
     // Обновляем картинку игровой доски
@@ -31,7 +32,6 @@ socket.on('moved', function(data) {
 });
 
 socket.on('end', function(data) {
-    console.log(data.winner)
     res = document.getElementById('status')
     if (data.winner) {
     res.innerHTML = 'Победил ' + data.winner + '!'
