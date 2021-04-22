@@ -66,8 +66,6 @@ def get_updated_game(game, color, move):
     else:
         game['pass_counter'] += 1
 
-    if is_end_of_game(game):
-        return get_results(game)
     return {'board': board, 'score': game['score'],
             'pass_counter': game['pass_counter'], 'result': None}
 

@@ -121,6 +121,7 @@ def leave_lobby():
     db.commit()
 
     emit("refresh")
+    emit('put_lobby_msg', {'name': usr.name, 'msg': 'покинул лобби'}, broadcast=True)
 
 
 @socketio.on('join_lobby')
@@ -134,6 +135,7 @@ def join_lobby(data):
     join_room(lobby_id)
 
     emit("refresh")
+    emit('put_lobby_msg', {'name': usr.name, 'msg': 'присоединился к лобби'}, broadcast=True)
 
 
 @socketio.on('chat_msg')
@@ -173,9 +175,11 @@ def leave_game():
         db.commit()
 
         emit('end', {'winner': session['enemy_name']}, broadcast=True)
+        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'}, broadcast=True)
     except Exception:
         pass
-    return emit('lobby_redirect', {'id': session['game_id']}, broadcast=False)
+
+    return emit('lobby_redirect', broadcast=False)
 
 
 @app.route('/game/<int:game_id>')
@@ -221,9 +225,14 @@ def move(data):
             GAMES[session["game_id"]] = game_board.get_updated_game(
                 GAMES[session["game_id"]], color,
                 move='pass')
+            emit('put_lobby_msg', {'name': current_user.name, 'msg': 'пропустил ход'},
+                 broadcast=True)
 
         board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
         board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+
+    if game_board.is_end_of_game(GAMES[session["game_id"]]):
+        GAMES[session["game_id"]] = game_board.get_results(GAMES[session["game_id"]])
 
     result = GAMES[session["game_id"]]['result']
     if result:

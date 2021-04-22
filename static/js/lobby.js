@@ -5,7 +5,7 @@ socket.on('refresh', () => {
 });
 
 socket.on('no_player', () => {
-    $('#chat').val($('#chat').val() + 'Недостаточно игроков для начала игры \n');
+    $('#chat').val($('#chat').val() + '< ' + 'Недостаточно игроков для начала игры' + ' >' + '\n');
     $('#chat').scrollTop($('#chat')[0].scrollHeight);
 });
 
@@ -14,11 +14,16 @@ socket.on('put_msg', (data) => {
     $('#chat').scrollTop($('#chat')[0].scrollHeight);
 });
 
+socket.on('put_lobby_msg', (data) => {
+    console.log('sssssss')
+    $('#chat').val($('#chat').val() + '< ' + data.name + ' ' +  data.msg + ' >' +'\n');
+});
+
 socket.on('game_redirect', (data) => {
     location.href = "/game/" + data.id
 });
 
-socket.on('lobby_redirect', (data) => {
+socket.on('lobby_redirect', () => {
     location.href = "/"
 });
 

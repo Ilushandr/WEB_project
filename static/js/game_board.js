@@ -40,6 +40,10 @@ socket.on('end', function(data) {
     }
 });
 
+socket.on('pass', function(data) {
+
+});
+
 function leave_game() {
     socket.emit("leave_game");
 }
