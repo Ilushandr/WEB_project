@@ -129,13 +129,16 @@ def join_lobby(data):
     db = db_session.create_session()
 
     lobby_id = data["code"]
-    usr = db.query(User).filter(User.id == current_user.id).first()
-    usr.lobby_id = lobby_id
-    db.commit()
-    join_room(lobby_id)
+    users_in_lobby = db.query(User).filter(User.lobby_id == lobby_id).all()
 
-    emit("refresh")
-    emit('put_lobby_msg', {'name': usr.name, 'msg': 'присоединился к лобби'}, broadcast=True)
+    if len(users_in_lobby) < 2:
+        usr = db.query(User).filter(User.id == current_user.id).first()
+        usr.lobby_id = lobby_id
+        db.commit()
+        join_room(lobby_id)
+
+        emit("refresh")
+        emit('put_lobby_msg', {'name': usr.name, 'msg': 'присоединился к лобби'}, broadcast=True)
 
 
 @socketio.on('chat_msg')
