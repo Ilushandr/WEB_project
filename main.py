@@ -1,9 +1,7 @@
+import os
 import string
 import random
-from pprint import pprint
-
-from flask import Flask, render_template, redirect, make_response, jsonify, session, request, \
-    url_for
+from flask import Flask, render_template, redirect, make_response, jsonify, session
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -17,16 +15,18 @@ from forms.user import LoginForm, RegisterForm
 from data.users_resource import UsersResource, UsersListResource
 from data import game_board
 
+GAMES = {}
+UPLOAD_FOLDER = 'static/img'
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 socketio = SocketIO(app)
 
 api = Api(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-
-GAMES = {}
 
 
 def keygen(l):
@@ -49,7 +49,24 @@ def load_user(user_id):
 @app.route('/')
 def index():
     lobby_id = current_user.lobby_id if current_user.is_authenticated else None
-    return render_template('index.html', lobby_id=lobby_id)
+
+    # Ищем свободные лобби
+    lobbies = set()
+    db = db_session.create_session()
+    for user in db.query(User).all():
+        id = user.lobby_id
+        if id:
+            if id in lobbies:
+                lobbies.remove(id)
+            else:
+                lobbies.add(id)
+
+    res_lobbies = []
+    for id in lobbies:
+        owner_name = db.query(User).filter(User.lobby_id == id).first().name
+        res_lobbies.append((owner_name, id))
+
+    return render_template('index.html', lobby_id=lobby_id, lobbies=list(sorted(res_lobbies)))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -121,6 +138,7 @@ def leave_lobby():
     db.commit()
 
     emit("refresh")
+    emit('put_lobby_msg', {'name': usr.name, 'msg': 'покинул лобби'}, broadcast=True)
 
 
 @socketio.on('join_lobby')
@@ -128,12 +146,16 @@ def join_lobby(data):
     db = db_session.create_session()
 
     lobby_id = data["code"]
-    usr = db.query(User).filter(User.id == current_user.id).first()
-    usr.lobby_id = lobby_id
-    db.commit()
-    join_room(lobby_id)
+    users_in_lobby = db.query(User).filter(User.lobby_id == lobby_id).all()
 
-    emit("refresh")
+    if len(users_in_lobby) < 2:
+        usr = db.query(User).filter(User.id == current_user.id).first()
+        usr.lobby_id = lobby_id
+        db.commit()
+        join_room(lobby_id)
+
+        emit("refresh")
+        emit('put_lobby_msg', {'name': usr.name, 'msg': 'присоединился к лобби'}, broadcast=True)
 
 
 @socketio.on('chat_msg')
@@ -155,8 +177,29 @@ def start_game():
 
     db.add(game)
     db.commit()
+    if len(players) == 2:
+        emit("game_redirect", {"id": game.id}, broadcast=True)
+    else:
+        emit("no_player", broadcast=True)
 
-    emit("game_redirect", {"id": game.id}, broadcast=True)
+
+@socketio.on('disconnect')
+@socketio.on('leave_game')
+def leave_game():
+    db = db_session.create_session()
+    try:
+        game_session = db.query(Game).get(session['game_id'])
+        db.delete(game_session)
+        del GAMES[session['game_id']]
+        os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+        db.commit()
+
+        emit('end', {'winner': session['enemy_name']}, broadcast=True)
+        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'}, broadcast=True)
+    except Exception:
+        pass
+
+    return emit('lobby_redirect', broadcast=False)
 
 
 @app.route('/game/<int:game_id>')
@@ -167,14 +210,22 @@ def game(game_id):
     size = game_session.size
 
     GAMES[game_id] = game_board.init_game(size)
+    board_img = game_board.render_board([[' '] * size] * size, matrix=True)
+    board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(game_id) + '.png')
 
     session["game_id"] = game_id
-    if int(game_session.players.split(";")[0]) == current_user.id:
+    players = list(map(int, game_session.players.split(";")))
+
+    if players[0] == current_user.id:
         session["color"] = "white"
+        session['enemy_name'] = db.query(User).get(players[1]).name
+        return render_template('game.html', title='Игра', size=size, game_id=game_id,
+                               white=current_user.name, black=session['enemy_name'])
     else:
         session["color"] = "black"
-
-    return render_template('game.html', title='Игра', size=size)
+        session['enemy_name'] = db.query(User).get(players[0]).name
+        return render_template('game.html', title='Игра', size=size, game_id=game_id,
+                               white=session['enemy_name'], black=current_user.name)
 
 
 @socketio.on('make_move')
@@ -182,19 +233,42 @@ def move(data):
     prev_color = data["prev_color"]
     move = data['move']
     color = session["color"]
-    if prev_color != color:
+    if prev_color != color and not GAMES[session["game_id"]]['result']:
         if move != '':
             y, x = list(map(int, move.split('-')))
-            if not game_board.is_free_node(y, x, GAMES[session.get("game_id")]['board']):
+            if not game_board.is_free_node(y, x, GAMES[session["game_id"]]['board']):
                 return
-            GAMES[session.get("game_id")] = game_board.get_updated_game(
-                GAMES[session.get("game_id")], color,
+            GAMES[session["game_id"]] = game_board.get_updated_game(
+                GAMES[session["game_id"]], color,
                 move=(x, y))
         else:
-            GAMES[session.get("game_id")] = game_board.get_updated_game(
-                GAMES[session.get("game_id")], color,
+            GAMES[session["game_id"]] = game_board.get_updated_game(
+                GAMES[session["game_id"]], color,
                 move='pass')
-    emit('moved', {'color': color, 'score': GAMES[session.get("game_id")]['score']}, broadcast=True)
+            emit('put_lobby_msg', {'name': current_user.name, 'msg': 'пропустил ход'},
+                 broadcast=True)
+
+        board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
+        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+
+    if game_board.is_end_of_game(GAMES[session["game_id"]]):
+        GAMES[session["game_id"]] = game_board.get_results(GAMES[session["game_id"]])
+
+    result = GAMES[session["game_id"]]['result']
+    if result:
+        if result == 'end':
+            return
+        if result == 'draw':
+            winner = ''
+        elif session['color'] == result['winner']:
+            winner = current_user.name
+        else:
+            winner = session['enemy_name']
+        GAMES[session["game_id"]]['result'] = 'end'
+        return emit('end', {'winner': winner}, broadcast=True)
+
+    return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
+                          'name': session['enemy_name']}, broadcast=True)
 
 
 def main():

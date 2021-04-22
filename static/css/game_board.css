@@ -1,19 +1,11 @@
-#board-container {
-    position: absolute;
-}
-
-#chat-container {
-    position: absolute;
-}
-
 #board-pic {
     position: absolute;
     pointer-events: none;
     z-index: 1;
 }
+
 .centered {
     display: inline-block;
-
 }
 
 .game-board {
@@ -22,7 +14,6 @@
 }
 
 .game-board td {
-    background: #a78a48;
     border: 2px solid;
     text-align: center;
     vertical-align: middle;
