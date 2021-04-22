@@ -5,10 +5,13 @@ from flask import Flask, render_template, redirect, make_response, jsonify, sess
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
+from sqlalchemy import or_
+
 
 from data import db_session
 from data.users import User
 from data.games import Game
+from data.lobbies import Lobby
 
 from forms.user import LoginForm, RegisterForm
 
@@ -48,23 +51,21 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    lobby_id = current_user.lobby_id if current_user.is_authenticated else None
+    db = db_session.create_session()
+    
+    if not current_user.is_authenticated:
+        return redirect("/login")
+
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby_id = lobby.id if lobby else None
 
     # Ищем свободные лобби
-    lobbies = set()
-    db = db_session.create_session()
-    for user in db.query(User).all():
-        id = user.lobby_id
-        if id:
-            if id in lobbies:
-                lobbies.remove(id)
-            else:
-                lobbies.add(id)
-
+    lobbies = db.query(Lobby).filter(or_(Lobby.p1 == None, Lobby.p2 == None)).all()
     res_lobbies = []
-    for id in lobbies:
-        owner_name = db.query(User).filter(User.lobby_id == id).first().name
-        res_lobbies.append((owner_name, id))
+    for lst_lobby in lobbies:
+        owner_id = lst_lobby.p1
+        owner_name = db.query(User).filter(User.id == owner_id).first().name
+        res_lobbies.append((owner_name, lst_lobby.id))
 
     return render_template('index.html', lobby_id=lobby_id, lobbies=list(sorted(res_lobbies)))
 
@@ -120,9 +121,14 @@ def create_lobby():
     db = db_session.create_session()
 
     lobby_id = keygen(16)
-    usr = db.query(User).filter(User.id == current_user.id).first()
-    usr.lobby_id = lobby_id
+    while db.query(Lobby).filter(Lobby.id == lobby_id).first():
+        lobby_id = keygen(16)
+
+    lobby = Lobby(id=lobby_id,
+                  p1=current_user.id)
+    db.add(lobby)
     db.commit()
+
     join_room(lobby_id)
 
     emit("refresh")
@@ -132,13 +138,21 @@ def create_lobby():
 def leave_lobby():
     db = db_session.create_session()
 
-    usr = db.query(User).filter(User.id == current_user.id).first()
-    leave_room(usr.lobby_id)
-    usr.lobby_id = None
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    players = [lobby.p1, lobby.p2]
+    players.remove(current_user.id)
+    players.append(None)
+
+    if players[0] or players[1]:
+        [lobby.p1, lobby.p2] = players
+    else:
+        db.delete(lobby)
+
     db.commit()
 
     emit("refresh")
-    emit('put_lobby_msg', {'name': usr.name, 'msg': 'покинул лобби'}, broadcast=True)
+    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, broadcast=True)
+    leave_room(lobby.id)
 
 
 @socketio.on('join_lobby')
@@ -146,16 +160,25 @@ def join_lobby(data):
     db = db_session.create_session()
 
     lobby_id = data["code"]
-    users_in_lobby = db.query(User).filter(User.lobby_id == lobby_id).all()
+    lobby = db.query(Lobby).filter(Lobby.id == lobby_id).first()
+    if not lobby:
+        print("Лобби с таким кодом не существует")
+        return emit("notification", {"msg": "Лобби с таким кодом не существует"})
 
-    if len(users_in_lobby) < 2:
-        usr = db.query(User).filter(User.id == current_user.id).first()
-        usr.lobby_id = lobby_id
-        db.commit()
-        join_room(lobby_id)
+    if lobby.p1 and lobby.p2:
+        print("В лобби отсутстсвуют свободные места")
+        return emit("notification", {"msg": "В лобби отсутстсвуют свободные места"})
 
-        emit("refresh")
-        emit('put_lobby_msg', {'name': usr.name, 'msg': 'присоединился к лобби'}, broadcast=True)
+    players = [lobby.p1, lobby.p2]
+
+    players[players.index(None)] = current_user.id
+    [lobby.p1, lobby.p2] = players
+
+    db.commit()
+    join_room(lobby_id)
+
+    emit("refresh")
+    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'}, broadcast=True)
 
 
 @socketio.on('chat_msg')
@@ -168,16 +191,17 @@ def chat_msg(data):
 def start_game():
     db = db_session.create_session()
 
-    lobby_id = current_user.lobby_id
-    players = [str(u.id) for u in db.query(User).filter(User.lobby_id == lobby_id)]
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    players = [lobby.p1, lobby.p2]
 
-    game = Game(lobby_id=lobby_id,
-                players=";".join(players),
+    game = Game(lobby_id=lobby.id,
+                players=";".join(list(map(str, players))),
                 size=19)
 
     db.add(game)
     db.commit()
-    if len(players) == 2:
+
+    if players[0] and players[1]:
         emit("game_redirect", {"id": game.id}, broadcast=True)
     else:
         emit("no_player", broadcast=True)
