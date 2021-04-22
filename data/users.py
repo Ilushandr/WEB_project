@@ -15,8 +15,6 @@ class User(SqlAlchemyBase, UserMixin, SerializerMixin):
     email = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=True)
     hashed_password = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
-    lobby_id = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)
 

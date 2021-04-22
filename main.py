@@ -9,6 +9,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from data import db_session
 from data.users import User
 from data.games import Game
+from data.lobbies import Lobby
 
 from forms.user import LoginForm, RegisterForm
 
@@ -92,7 +93,7 @@ def logout():
 
 
 @app.route('/register', methods=['GET', 'POST'])
-def reqister():
+def register():
     form = RegisterForm()
     if form.validate_on_submit():
         if form.password.data != form.password_again.data:
