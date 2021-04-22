@@ -39,6 +39,10 @@ $("#join_lobby").click(() => {
     socket.emit("join_lobby", {code: $("#code").val()});
 });
 
+$(".list-group").click(() => {
+    socket.emit("join_lobby", {code: event.target.id});
+});
+
 $("#send_msg").click(() => {
     socket.emit("chat_msg", {msg: $("#msg_text").val()});
     $('#msg_text').val("")

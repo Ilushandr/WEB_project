@@ -6,10 +6,12 @@
 <table align="center">
     <tr>
         <td style="padding-bottom: 5px; padding-right: 0px; padding-top: 10px">
-            <input class="btn btn-success text-light" type="button" value="Начать игру" id="start_game">
+            <input class="btn btn-success text-light" type="button" value="Начать игру"
+                   id="start_game">
         </td>
         <td style="padding-bottom: 5px; padding-left: 30px; padding-top: 10px">
-            <input class="btn btn-danger text-light" type="button" value="Покинуть лобби" id="leave_lobby">
+            <input class="btn btn-danger text-light" type="button" value="Покинуть лобби"
+                   id="leave_lobby">
         </td>
     </tr>
     <table align="center">
@@ -20,10 +22,11 @@
             </th>
 
         </tr>
-        <tr >
+        <tr>
             <td style="padding-top: 10px; padding-left: 10px;">
                 <input type="text" id="msg_text">
-                <input class="btn btn-info text-light" type="button" value="Отправить" id="send_msg">
+                <input class="btn btn-info text-light" type="button" value="Отправить"
+                       id="send_msg">
             </td>
             <td style="padding: 0 10px;">
                 <label for="lbid" class="text-light">Код для лобби:</label>
@@ -36,17 +39,27 @@
         <tr>
             <td style="text-align: center">
                 <label class="text-light">Если у вас нет кода для лобби, то нажмите -> </label>
-                <input class="btn btn-info text-light" type="button" value="Создать лобби" id="create_lobby">
+                <input class="btn btn-info text-light" type="button" value="Создать лобби"
+                       id="create_lobby">
             </td>
         </tr>
         <tr>
             <td style="text-align: center">
                 <label for="code" class="text-light">Код для входа в лобби: </label>
                 <input type="text" name="code" id="code">
-                <input class="btn btn-success text-light" type="button" value="Войти в лобби" id="join_lobby">
+                <input class="btn btn-success text-light" type="button" value="Войти в лобби"
+                       id="join_lobby">
             </td>
         </tr>
     </table>
+    <div class="list-group">
+        {% for lobby in lobbies %}
+            <a id="{{ lobby[1] }}" class="list-group-item list-group-item-action"
+               onclick="">
+                {{ lobby[0] }}
+            </a>
+        {% endfor %}
+    </div>
     {% endif %}
     {% else %}
     <div class="alert alert-danger" role="alert" style="margin-top: 10px;">
@@ -55,4 +68,4 @@
     </div>
     {% endif %}
     <script src="/static/js/lobby.js"></script>
-{% endblock %}
+    {% endblock %}

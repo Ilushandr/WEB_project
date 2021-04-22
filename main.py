@@ -49,7 +49,24 @@ def load_user(user_id):
 @app.route('/')
 def index():
     lobby_id = current_user.lobby_id if current_user.is_authenticated else None
-    return render_template('index.html', lobby_id=lobby_id)
+
+    # Ищем свободные лобби
+    lobbies = set()
+    db = db_session.create_session()
+    for user in db.query(User).all():
+        id = user.lobby_id
+        if id:
+            if id in lobbies:
+                lobbies.remove(id)
+            else:
+                lobbies.add(id)
+
+    res_lobbies = []
+    for id in lobbies:
+        owner_name = db.query(User).filter(User.lobby_id == id).first().name
+        res_lobbies.append((owner_name, id))
+
+    return render_template('index.html', lobby_id=lobby_id, lobbies=list(sorted(res_lobbies)))
 
 
 @app.route('/login', methods=['GET', 'POST'])
