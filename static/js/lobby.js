@@ -20,12 +20,28 @@ socket.on('put_msg', (data) => {
 });
 
 socket.on('put_lobby_msg', (data) => {
-    console.log('sssssss')
     $('#chat').val($('#chat').val() + '< ' + data.name + ' ' +  data.msg + ' >' +'\n');
+    socket.emit("get_players");
 });
 
 socket.on('game_redirect', (data) => {
-    location.href = "/game/" + data.id
+    location.href = "/game/" + data.id;
+});
+
+socket.on('message', (data) => {
+    alert(data);
+});
+
+socket.on('players', (data) => {
+    console.log(data);
+    $("#player-1").text(data.p1);
+    if(data.p2 == null){
+        $("#player-2").addClass("table-secondary")
+        $("#player-2").text(" ")
+    }else{
+        $("#player-2").removeClass("table-secondary")
+        $("#player-2").text(data.p2)
+    }
 });
 
 socket.on('lobby_redirect', () => {
@@ -56,3 +72,5 @@ $("#send_msg").click(() => {
 $("#start_game").click(() => {
     socket.emit("start_game");
 });
+
+socket.emit("get_players");

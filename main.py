@@ -1,22 +1,19 @@
 import os
 import string
 import random
-from flask import Flask, render_template, redirect, make_response, jsonify, session
+from flask import Flask, render_template, redirect, make_response, jsonify, session, request
 from flask_restful import Api
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from sqlalchemy import or_
 
-
 from data import db_session
 from data.users import User
 from data.games import Game
 from data.lobbies import Lobby
+from data import game_board
 
 from forms.user import LoginForm, RegisterForm
-
-from data.users_resource import UsersResource, UsersListResource
-from data import game_board
 
 GAMES = {}
 UPLOAD_FOLDER = 'static/img'
@@ -52,7 +49,7 @@ def load_user(user_id):
 @app.route('/')
 def index():
     db = db_session.create_session()
-    
+
     if not current_user.is_authenticated:
         return redirect("/login")
 
@@ -60,7 +57,7 @@ def index():
     lobby_id = lobby.id if lobby else None
 
     # Ищем свободные лобби
-    lobbies = db.query(Lobby).filter(or_(Lobby.p1 == None, Lobby.p2 == None)).all()
+    lobbies = db.query(Lobby).filter(Lobby.p2 == None).all()
     res_lobbies = []
     for lst_lobby in lobbies:
         owner_id = lst_lobby.p1
@@ -139,6 +136,9 @@ def leave_lobby():
     db = db_session.create_session()
 
     lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+
+    leave_room(lobby.id)
+
     players = [lobby.p1, lobby.p2]
     players.remove(current_user.id)
     players.append(None)
@@ -150,9 +150,10 @@ def leave_lobby():
 
     db.commit()
 
+    session["lobby"] = None
+
     emit("refresh")
-    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, broadcast=True)
-    leave_room(lobby.id)
+    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, room=lobby.id)
 
 
 @socketio.on('join_lobby')
@@ -160,6 +161,7 @@ def join_lobby(data):
     db = db_session.create_session()
 
     lobby_id = data["code"]
+    session["lobby"] = lobby_id
     lobby = db.query(Lobby).filter(Lobby.id == lobby_id).first()
     if not lobby:
         return emit("notification", {"msg": "Лобби с таким кодом не существует"})
@@ -170,25 +172,45 @@ def join_lobby(data):
     players = [lobby.p1, lobby.p2]
 
     players[players.index(None)] = current_user.id
-    [lobby.p1, lobby.p2] = players
+    lobby.p1, lobby.p2 = players
 
     db.commit()
     join_room(lobby_id)
 
     emit("refresh")
-    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'}, broadcast=True)
+    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'},
+         room=lobby.id)
 
 
 @socketio.on('chat_msg')
 def chat_msg(data):
+    db = db_session.create_session()
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     msg = data["msg"]
-    emit("put_msg", {"msg": msg, "name": current_user.name}, broadcast=True)
+    emit("put_msg", {"msg": msg, "name": current_user.name}, room=lobby.id)
+
+
+@socketio.on('get_players')
+def get_players():
+    db = db_session.create_session()
+
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+
+    if not lobby:
+        return
+
+    p1 = db.query(User).filter(User.id == lobby.p1).first()
+    p2 = db.query(User).filter(User.id == lobby.p2).first()
+
+    p1_name = p1.name if p1 else None
+    p2_name = p2.name if p2 else None
+
+    emit("players", {"p1": p1_name, "p2": p2_name}, room=lobby.id)
 
 
 @socketio.on('start_game')
 def start_game():
     db = db_session.create_session()
-
     lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     players = [lobby.p1, lobby.p2]
 
@@ -200,9 +222,9 @@ def start_game():
     db.commit()
 
     if players[0] and players[1]:
-        emit("game_redirect", {"id": game.id}, broadcast=True)
+        emit("game_redirect", {"id": game.id}, room=lobby.id)
     else:
-        emit("no_player", broadcast=True)
+        emit("no_player", room=lobby.id)
 
 
 @socketio.on('disconnect')
@@ -216,12 +238,24 @@ def leave_game():
         os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
         db.commit()
 
-        emit('end', {'winner': session['enemy_name']}, broadcast=True)
-        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'}, broadcast=True)
+        lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+
+        emit('end', {'winner': session['enemy_name']},
+             room=lobby.id)
+        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'},
+             room=lobby.id)
     except Exception:
         pass
 
-    return emit('lobby_redirect', broadcast=False)
+    return emit('lobby_redirect')
+
+
+@socketio.on('connect')
+def test_connect():
+    db = db_session.create_session()
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    if lobby:
+        join_room(lobby.id)
 
 
 @app.route('/game/<int:game_id>')
@@ -252,6 +286,9 @@ def game(game_id):
 
 @socketio.on('make_move')
 def move(data):
+    db = db_session.create_session()
+    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+
     prev_color = data["prev_color"]
     move = data['move']
     color = session["color"]
@@ -268,7 +305,7 @@ def move(data):
                 GAMES[session["game_id"]], color,
                 move='pass')
             emit('put_lobby_msg', {'name': current_user.name, 'msg': 'пропустил ход'},
-                 broadcast=True)
+                 room=lobby.id)
 
         board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
         board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
@@ -287,18 +324,14 @@ def move(data):
         else:
             winner = session['enemy_name']
         GAMES[session["game_id"]]['result'] = 'end'
-        return emit('end', {'winner': winner}, broadcast=True)
+        return emit('end', {'winner': winner}, room=lobby.id)
 
     return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
-                          'name': session['enemy_name']}, broadcast=True)
+                          'name': session['enemy_name']}, room=lobby.id)
 
 
 def main():
     db_session.global_init("db/db.db")
-
-    api.add_resource(UsersListResource, "/api/v2/users")
-    api.add_resource(UsersResource, "/api/v2/users/<int:user_id>")
-
     socketio.run(app, "127.0.0.1", 80)
 
 
