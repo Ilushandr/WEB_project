@@ -7,7 +7,7 @@
         {{ form.hidden_tag() }}
         <p>
             <label class="text-light">Почта</label> <br>
-            {{ form.email(class="form-control", type="email") }}<br>
+            {{ form.email(class="form-control bg-dark text-light", type="email") }}<br>
             {% for error in form.email.errors %}
                 <div class="alert alert-danger" role="alert">
                     {{ error }}
@@ -16,7 +16,7 @@
         </p>
         <p>
             <label class="text-light">Пароль</label> <br>
-            {{ form.password(class="form-control", type="password") }}<br>
+            {{ form.password(class="form-control bg-dark text-light", type="password") }}<br>
             {% for error in form.password.errors %}
                 <div class="alert alert-danger" role="alert">
                     {{ error }}
