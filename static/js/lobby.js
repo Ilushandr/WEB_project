@@ -4,6 +4,11 @@ socket.on('refresh', () => {
     location.reload();
 });
 
+socket.on('notification', (data) => {
+    text = data.msg;
+    $("#notifs").append('<div class="notif alert alert-warning alert-dismissible fade show" role="alert">' + text + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+});
+
 socket.on('no_player', () => {
     $('#chat').val($('#chat').val() + '< ' + 'Недостаточно игроков для начала игры' + ' >' + '\n');
     $('#chat').scrollTop($('#chat')[0].scrollHeight);

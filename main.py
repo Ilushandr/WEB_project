@@ -162,11 +162,9 @@ def join_lobby(data):
     lobby_id = data["code"]
     lobby = db.query(Lobby).filter(Lobby.id == lobby_id).first()
     if not lobby:
-        print("Лобби с таким кодом не существует")
         return emit("notification", {"msg": "Лобби с таким кодом не существует"})
 
     if lobby.p1 and lobby.p2:
-        print("В лобби отсутстсвуют свободные места")
         return emit("notification", {"msg": "В лобби отсутстсвуют свободные места"})
 
     players = [lobby.p1, lobby.p2]
