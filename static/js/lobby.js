@@ -20,7 +20,6 @@ socket.on('put_msg', (data) => {
 });
 
 socket.on('put_lobby_msg', (data) => {
-    console.log('sssssss')
     $('#chat').val($('#chat').val() + '< ' + data.name + ' ' +  data.msg + ' >' +'\n');
 });
 

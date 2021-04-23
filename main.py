@@ -7,7 +7,6 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from sqlalchemy import or_
 
-
 from data import db_session
 from data.users import User
 from data.games import Game
@@ -38,6 +37,20 @@ def keygen(l):
     return rand_string
 
 
+def get_lobbies():
+    db = db_session.create_session()
+
+    # Ищем свободные лобби
+    lobbies = db.query(Lobby).filter(or_(Lobby.p1 == None, Lobby.p2 == None)).all()
+    res_lobbies = []
+    for lst_lobby in lobbies:
+        owner_id = lst_lobby.p1
+        owner_name = db.query(User).filter(User.id == owner_id).first().name
+        res_lobbies.append((owner_name, lst_lobby.id))
+
+    return list(sorted(res_lobbies))
+
+
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
@@ -52,22 +65,16 @@ def load_user(user_id):
 @app.route('/')
 def index():
     db = db_session.create_session()
-    
+
     if not current_user.is_authenticated:
         return redirect("/login")
 
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     lobby_id = lobby.id if lobby else None
 
-    # Ищем свободные лобби
-    lobbies = db.query(Lobby).filter(or_(Lobby.p1 == None, Lobby.p2 == None)).all()
-    res_lobbies = []
-    for lst_lobby in lobbies:
-        owner_id = lst_lobby.p1
-        owner_name = db.query(User).filter(User.id == owner_id).first().name
-        res_lobbies.append((owner_name, lst_lobby.id))
-
-    return render_template('index.html', lobby_id=lobby_id, lobbies=list(sorted(res_lobbies)))
+    lobbies = get_lobbies()
+    return render_template('index.html', lobby_id=lobby_id, lobbies=list(sorted(lobbies)))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -131,6 +138,9 @@ def create_lobby():
 
     join_room(lobby_id)
 
+    lobbies = get_lobbies()
+
+    emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
     emit("refresh")
 
 
@@ -138,17 +148,23 @@ def create_lobby():
 def leave_lobby():
     db = db_session.create_session()
 
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     players = [lobby.p1, lobby.p2]
     players.remove(current_user.id)
     players.append(None)
 
+    deleted = False
     if players[0] or players[1]:
         [lobby.p1, lobby.p2] = players
     else:
+        deleted = True
         db.delete(lobby)
 
     db.commit()
+    if deleted:
+        lobbies = get_lobbies()
+        emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
 
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, broadcast=True)
@@ -176,7 +192,8 @@ def join_lobby(data):
     join_room(lobby_id)
 
     emit("refresh")
-    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'}, broadcast=True)
+    emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'},
+         broadcast=True)
 
 
 @socketio.on('chat_msg')
@@ -189,7 +206,8 @@ def chat_msg(data):
 def start_game():
     db = db_session.create_session()
 
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     players = [lobby.p1, lobby.p2]
 
     game = Game(lobby_id=lobby.id,

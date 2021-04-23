@@ -3,38 +3,38 @@
 {% block content %}
 {% if current_user.is_authenticated %}
 {% if lobby_id %}
+<table align="center">
+    <tr>
+        <td style="padding-bottom: 5px; padding-right: 0px; padding-top: 10px">
+            <input class="btn btn-success text-light" type="button" value="Начать игру"
+                   id="start_game">
+        </td>
+        <td style="padding-bottom: 5px; padding-left: 30px; padding-top: 10px">
+            <input class="btn btn-danger text-light" type="button" value="Покинуть лобби"
+                   id="leave_lobby">
+        </td>
+    </tr>
     <table align="center">
         <tr>
-            <td style="padding-bottom: 5px; padding-right: 0px; padding-top: 10px">
-                <input class="btn btn-success text-light" type="button" value="Начать игру"
-                       id="start_game">
-            </td>
-            <td style="padding-bottom: 5px; padding-left: 30px; padding-top: 10px">
-                <input class="btn btn-danger text-light" type="button" value="Покинуть лобби"
-                       id="leave_lobby">
-            </td>
-        </tr>
-        <table align="center">
-            <tr>
-                <th style="padding: 0 10px;" colspan="2">
+            <th style="padding: 0 10px;" colspan="2">
                     <textarea rows="20" cols="75" id="chat" class="form-control form-control-lg"
                               readonly></textarea>
-                </th>
+            </th>
 
-            </tr>
-            <tr>
-                <td style="padding-top: 10px; padding-left: 10px;">
-                    <input type="text" id="msg_text">
-                    <input class="btn btn-info text-light" type="button" value="Отправить"
-                           id="send_msg">
-                </td>
-                <td style="padding: 0 10px;">
-                    <label for="lbid" class="text-light">Код для лобби:</label>
-                    <input type="text" name="lbid" value="{{ lobby_id }}">
-                </td>
-            </tr>
-        </table>
-{% else %}
+        </tr>
+        <tr>
+            <td style="padding-top: 10px; padding-left: 10px;">
+                <input type="text" id="msg_text">
+                <input class="btn btn-info text-light" type="button" value="Отправить"
+                       id="send_msg">
+            </td>
+            <td style="padding: 0 10px;">
+                <label for="lbid" class="text-light">Код для лобби:</label>
+                <input type="text" name="lbid" value="{{ lobby_id }}">
+            </td>
+        </tr>
+    </table>
+    {% else %}
     <table align="center" style="margin-top: 10px;">
         <tr>
             <td style="text-align: center">
@@ -52,12 +52,12 @@
             </td>
         </tr>
     </table>
-    <div class="list-group">
+    <div id="lobbies_list" class="list-group">
         {% for lobby in lobbies %}
-            <a id="{{ lobby[1] }}" class="list-group-item list-group-item-action"
-               onclick="">
-                {{ lobby[0] }}
-            </a>
+        <a id="{{ lobby[1] }}" class="list-group-item list-group-item-action"
+           onclick="">
+            {{ lobby[0] }}
+        </a>
         {% endfor %}
     </div>
     {% endif %}
@@ -67,5 +67,6 @@
          text-center">Вы не авторизованы, если у вас нет аккаунта, то зарегистрируйтесь.</h2>
     </div>
     {% endif %}
+    <script src="/static/js/main_page.js"></script>
     <script src="/static/js/lobby.js"></script>
-{% endblock %}
+    {% endblock %}
