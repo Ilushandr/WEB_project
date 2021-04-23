@@ -152,17 +152,15 @@ def leave_lobby():
     players.remove(current_user.id)
     players.append(None)
 
-    deleted = False
     if players[0] or players[1]:
         [lobby.p1, lobby.p2] = players
     else:
-        deleted = True
         db.delete(lobby)
 
     db.commit()
-    if deleted:
-        lobbies = get_lobbies()
-        emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
+
+    lobbies = get_lobbies()
+    emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
 
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, room=lobby.id)
@@ -189,6 +187,9 @@ def join_lobby(data):
     db.commit()
     join_room(lobby_id)
 
+    lobbies = get_lobbies()
+
+    emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'},
          room=lobby.id)
