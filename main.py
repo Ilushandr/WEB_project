@@ -121,6 +121,38 @@ def register():
     return render_template('register.html', title='Регистрация', form=form)
 
 
+@app.route('/game/<int:game_id>')
+def game(game_id):
+    db = db_session.create_session()
+
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+
+    game_session = db.query(Game).get(game_id)
+    if game_session:
+        size = game_session.size
+
+        GAMES[game_id] = game_board.init_game(size)
+        board_img = game_board.render_board([[' '] * size] * size, matrix=True)
+        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(game_id) + '.png')
+
+        session["game_id"] = game_id
+        players = list(map(int, game_session.players.split(";")))
+
+        if players[0] == current_user.id:
+            session["color"] = "white"
+            session['enemy_name'] = db.query(User).get(players[1]).name
+            return render_template('game.html', title='Игра', size=size, game_id=game_id,
+                                   white=current_user.name, black=session['enemy_name'])
+        else:
+            session["color"] = "black"
+            session['enemy_name'] = db.query(User).get(players[0]).name
+            return render_template('game.html', title='Игра', size=size, game_id=game_id,
+                                   white=session['enemy_name'], black=current_user.name)
+    else:
+        return redirect('/')
+
+
 @socketio.on('create_lobby')
 def create_lobby():
     db = db_session.create_session()
@@ -198,7 +230,8 @@ def join_lobby(data):
 @socketio.on('chat_msg')
 def chat_msg(data):
     db = db_session.create_session()
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     msg = data["msg"]
     emit("put_msg", {"msg": msg, "name": current_user.name}, room=lobby.id)
 
@@ -207,7 +240,8 @@ def chat_msg(data):
 def get_players():
     db = db_session.create_session()
 
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
 
     if not lobby:
         return
@@ -253,7 +287,8 @@ def leave_game():
         os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
         db.commit()
 
-        lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+        lobby = db.query(Lobby).filter(
+            or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
 
         emit('end', {'winner': session['enemy_name']},
              room=lobby.id)
@@ -268,41 +303,17 @@ def leave_game():
 @socketio.on('connect')
 def test_connect():
     db = db_session.create_session()
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     if lobby:
         join_room(lobby.id)
-
-
-@app.route('/game/<int:game_id>')
-def game(game_id):
-    db = db_session.create_session()
-
-    game_session = db.query(Game).get(game_id)
-    size = game_session.size
-
-    GAMES[game_id] = game_board.init_game(size)
-    board_img = game_board.render_board([[' '] * size] * size, matrix=True)
-    board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(game_id) + '.png')
-
-    session["game_id"] = game_id
-    players = list(map(int, game_session.players.split(";")))
-
-    if players[0] == current_user.id:
-        session["color"] = "white"
-        session['enemy_name'] = db.query(User).get(players[1]).name
-        return render_template('game.html', title='Игра', size=size, game_id=game_id,
-                               white=current_user.name, black=session['enemy_name'])
-    else:
-        session["color"] = "black"
-        session['enemy_name'] = db.query(User).get(players[0]).name
-        return render_template('game.html', title='Игра', size=size, game_id=game_id,
-                               white=session['enemy_name'], black=current_user.name)
 
 
 @socketio.on('make_move')
 def move(data):
     db = db_session.create_session()
-    lobby = db.query(Lobby).filter(or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
 
     prev_color = data["prev_color"]
     move = data['move']
