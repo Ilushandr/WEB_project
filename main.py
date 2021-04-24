@@ -358,7 +358,8 @@ def move(data):
 
 def main():
     db_session.global_init("db/db.db")
-    socketio.run(app, "127.0.0.1", 80)
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host="0.0.0.0", port=port)
 
 
 if __name__ == '__main__':
