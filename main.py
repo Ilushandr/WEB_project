@@ -341,8 +341,9 @@ def move(data):
         board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
         board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
 
-        return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
-                              'name': session['enemy_name'], 'game_id': lobby.id}, room=lobby.id)
+        if not GAMES[session["game_id"]]['result']:
+            return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
+                                  'name': session['enemy_name'], 'game_id': lobby.id}, room=lobby.id)
 
     if game_board.is_end_of_game(GAMES[session["game_id"]]):
         GAMES[session["game_id"]] = game_board.get_results(GAMES[session["game_id"]])
