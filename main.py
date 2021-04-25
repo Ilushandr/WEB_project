@@ -187,13 +187,16 @@ def leave_lobby():
     players.remove(current_user.id)
     players.append(None)
 
-    if players[0] or players[1]:
-        [lobby.p1, lobby.p2] = players
-    else:
-        db.delete(lobby)
-        del GAMES[session['game_id']]
+    try:
+        if players[0] or players[1]:
+            [lobby.p1, lobby.p2] = players
+        else:
+            db.delete(lobby)
+            del GAMES[session['game_id']]
+        db.commit()
+    except Exception:
+        pass
 
-    db.commit()
     lobbies = get_lobbies()
     emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
     emit("refresh")
@@ -361,7 +364,7 @@ def move(data):
 def main():
     db_session.global_init("db/db.db")
     port = int(os.environ.get("PORT", 80))
-    socketio.run(app, host="1.0.0.0", port=port)
+    socketio.run(app, host="0.0.0.0", port=port)
 
 
 if __name__ == '__main__':
