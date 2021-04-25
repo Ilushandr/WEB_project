@@ -1,7 +1,6 @@
 var sc_width = document.documentElement.clientWidth
 var sc_height = document.documentElement.clientHeight
 var path = document.location.pathname
-var game_id = path.split('/')[2]
 var size = '19'
 var board_size = Math.min(sc_width, sc_height) - 200
 var node_size = board_size / (String(+size + +'1'))
@@ -16,7 +15,7 @@ socket.on('moved', function(data) {
     document.getElementById('status').innerHTML = 'Ходит: ' + data.name
     prev_color = data.color
     d = new Date()
-    $('#board-pic').attr("src", "/static/img/" + game_id + ".png?" + d.getTime())
+    $('#board-pic').attr("src", "/static/img/" + data.game_id + ".png?" + d.getTime())
     var picture = document.getElementById('board-pic')
     var padding = node_size / 2
     picture.style.paddingRight = padding

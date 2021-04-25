@@ -132,22 +132,22 @@ def game(game_id):
     if game_session:
         size = game_session.size
 
-        GAMES[game_id] = game_board.init_game(size)
+        GAMES[lobby.id] = game_board.init_game(size)
         board_img = game_board.render_board([[' '] * size] * size, matrix=True)
-        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(game_id) + '.png')
+        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(lobby.id) + '.png')
 
-        session["game_id"] = game_id
+        session["game_id"] = lobby.id
         players = list(map(int, game_session.players.split(";")))
 
         if players[0] == current_user.id:
             session["color"] = "white"
             session['enemy_name'] = db.query(User).get(players[1]).name
-            return render_template('game.html', title='Игра', size=size, game_id=game_id,
+            return render_template('game.html', title='Игра', size=size, game_id=lobby.id,
                                    white=current_user.name, black=session['enemy_name'])
         else:
             session["color"] = "black"
             session['enemy_name'] = db.query(User).get(players[0]).name
-            return render_template('game.html', title='Игра', size=size, game_id=game_id,
+            return render_template('game.html', title='Игра', size=size, game_id=lobby.id,
                                    white=session['enemy_name'], black=current_user.name)
     else:
         return redirect('/')
@@ -188,12 +188,11 @@ def leave_lobby():
         [lobby.p1, lobby.p2] = players
     else:
         db.delete(lobby)
+        del GAMES[session['game_id']]
 
     db.commit()
-
     lobbies = get_lobbies()
     emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
-
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, room=lobby.id)
     leave_room(lobby.id)
@@ -280,19 +279,19 @@ def start_game():
 @socketio.on('leave_game')
 def leave_game():
     db = db_session.create_session()
+    lobby = db.query(Lobby).filter(
+        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     try:
-        game_session = db.query(Game).get(session['game_id'])
-        db.delete(game_session)
-        del GAMES[session['game_id']]
+        game_session = db.query(Game).filter(Game.lobby_id == session['game_id']).all()
+        for game in game_session:
+            db.delete(game)
         os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
         db.commit()
 
-        lobby = db.query(Lobby).filter(
-            or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
+        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'},
+             room=lobby.id)
 
         emit('end', {'winner': session['enemy_name']},
-             room=lobby.id)
-        emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'},
              room=lobby.id)
     except Exception:
         pass
@@ -336,6 +335,9 @@ def move(data):
         board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
         board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
 
+        return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
+                              'name': session['enemy_name'], 'game_id': lobby.id}, room=lobby.id)
+
     if game_board.is_end_of_game(GAMES[session["game_id"]]):
         GAMES[session["game_id"]] = game_board.get_results(GAMES[session["game_id"]])
 
@@ -352,14 +354,11 @@ def move(data):
         GAMES[session["game_id"]]['result'] = 'end'
         return emit('end', {'winner': winner}, room=lobby.id)
 
-    return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
-                          'name': session['enemy_name']}, room=lobby.id)
-
 
 def main():
     db_session.global_init("db/db.db")
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port)
+    socketio.run(app, host="127.0.0.1", port=80)
 
 
 if __name__ == '__main__':
