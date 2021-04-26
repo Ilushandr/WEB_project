@@ -31,7 +31,7 @@ def is_free_node(row, col, board):
 
 
 def is_end_of_game(game):
-    if game['pass_counter'] > 1:
+    if 'pass_counter' in game and game['pass_counter'] > 1:
         return True
     return False
 

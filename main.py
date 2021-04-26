@@ -124,33 +124,30 @@ def register():
     return render_template('register.html', title='Регистрация', form=form)
 
 
-@app.route('/game/<int:game_id>')
-def game(game_id):
+@app.route('/game/<string:lobby_id>')
+def game(lobby_id):
     db = db_session.create_session()
-
-    lobby = db.query(Lobby).filter(
-        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
-
-    game_session = db.query(Game).get(game_id)
+    session['lobby_id'] = lobby_id
+    game_session = db.query(Game).filter(Game.lobby_id == lobby_id).first()
     if game_session:
         size = game_session.size
-
-        GAMES[lobby.id] = game_board.init_game(size)
+        GAMES[session['lobby_id']] = game_board.init_game(size)
         board_img = game_board.render_board([[' '] * size] * size, matrix=True)
-        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(lobby.id) + '.png')
+        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['lobby_id']) + '.png')
 
-        session["game_id"] = lobby.id
         players = list(map(int, game_session.players.split(";")))
 
         if players[0] == current_user.id:
             session["color"] = "white"
             session['enemy_name'] = db.query(User).get(players[1]).name
-            return render_template('game.html', title='Игра', size=size, game_id=lobby.id,
+            return render_template('game.html', title='Игра', size=size,
+                                   game_id=session['lobby_id'],
                                    white=current_user.name, black=session['enemy_name'])
         else:
             session["color"] = "black"
             session['enemy_name'] = db.query(User).get(players[0]).name
-            return render_template('game.html', title='Игра', size=size, game_id=lobby.id,
+            return render_template('game.html', title='Игра', size=size,
+                                   game_id=session['lobby_id'],
                                    white=session['enemy_name'], black=current_user.name)
     else:
         return redirect('/')
@@ -175,6 +172,7 @@ def create_lobby():
 
     emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
     emit("refresh")
+    session['lobby_id'] = lobby_id
 
 
 @socketio.on('leave_lobby')
@@ -186,22 +184,22 @@ def leave_lobby():
     players = [lobby.p1, lobby.p2]
     players.remove(current_user.id)
     players.append(None)
-
-    try:
-        if players[0] or players[1]:
-            [lobby.p1, lobby.p2] = players
-        else:
-            db.delete(lobby)
-            del GAMES[session['game_id']]
-        db.commit()
-    except Exception:
-        pass
-
+    # try:
+    if players[0] or players[1]:
+        [lobby.p1, lobby.p2] = players
+    else:
+        db.delete(lobby)
+        if lobby.id in GAMES:
+            del GAMES[lobby.id]
+    db.commit()
+    # except Exception:
+    #     pass
     lobbies = get_lobbies()
     emit('update_lobbies_list', {'lobbies': lobbies}, broadcast=True)
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул лобби'}, room=lobby.id)
     leave_room(lobby.id)
+    session['lobby_id'] = ''
 
 
 @socketio.on('join_lobby')
@@ -230,6 +228,8 @@ def join_lobby(data):
     emit("refresh")
     emit('put_lobby_msg', {'name': current_user.name, 'msg': 'присоединился к лобби'},
          room=lobby.id)
+
+    session['lobby_id'] = lobby.id
 
 
 @socketio.on('chat_msg')
@@ -275,8 +275,9 @@ def start_game():
     db.add(game)
     db.commit()
 
+    session['lobby_id'] = lobby.id
     if players[0] and players[1]:
-        emit("game_redirect", {"id": game.id}, room=lobby.id)
+        emit("game_redirect", {"id": session['lobby_id']}, room=lobby.id)
     else:
         emit("no_player", room=lobby.id)
 
@@ -288,10 +289,10 @@ def leave_game():
     lobby = db.query(Lobby).filter(
         or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
     try:
-        game_session = db.query(Game).filter(Game.lobby_id == session['game_id']).all()
+        game_session = db.query(Game).filter(Game.lobby_id == session['lobby_id']).all()
         for game in game_session:
             db.delete(game)
-        os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+        os.remove(app.config['UPLOAD_FOLDER'] + '/' + str(session['lobby_id']) + '.png')
         db.commit()
 
         emit('put_lobby_msg', {'name': current_user.name, 'msg': 'покинул игру'},
@@ -316,35 +317,31 @@ def test_connect():
 
 @socketio.on('make_move')
 def move(data):
-    db = db_session.create_session()
-    lobby = db.query(Lobby).filter(
-        or_(Lobby.p1 == current_user.id, Lobby.p2 == current_user.id)).first()
-
     prev_color = data["prev_color"]
     move = data['move']
     color = session["color"]
-    if prev_color != color and not GAMES[session["game_id"]]['result']:
+    if prev_color != color and not GAMES[session['lobby_id']]['result']:
         if move != '':
             y, x = list(map(int, move.split('-')))
-            if not game_board.is_free_node(y, x, GAMES[session["game_id"]]['board']):
+            if not game_board.is_free_node(y, x, GAMES[session['lobby_id']]['board']):
                 return
-            GAMES[session["game_id"]] = game_board.get_updated_game(
-                GAMES[session["game_id"]], color,
+            GAMES[session['lobby_id']] = game_board.get_updated_game(
+                GAMES[session['lobby_id']], color,
                 move=(x, y))
         else:
-            GAMES[session["game_id"]] = game_board.get_updated_game(
-                GAMES[session["game_id"]], color,
+            GAMES[session['lobby_id']] = game_board.get_updated_game(
+                GAMES[session['lobby_id']], color,
                 move='pass')
             emit('put_lobby_msg', {'name': current_user.name, 'msg': 'пропустил ход'},
-                 room=lobby.id)
+                 room=session['lobby_id'])
 
-        board_img = game_board.render_board(GAMES[session["game_id"]]['board'])
-        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['game_id']) + '.png')
+        board_img = game_board.render_board(GAMES[session['lobby_id']]['board'])
+        board_img.save(app.config['UPLOAD_FOLDER'] + '/' + str(session['lobby_id']) + '.png')
 
-    if game_board.is_end_of_game(GAMES[session["game_id"]]):
-        GAMES[session["game_id"]] = game_board.get_results(GAMES[session["game_id"]])
+    if game_board.is_end_of_game(GAMES[session['lobby_id']]):
+        GAMES[session['lobby_id']] = game_board.get_results(GAMES[session['lobby_id']])
 
-    result = GAMES[session["game_id"]]['result']
+    result = GAMES[session['lobby_id']]['result']
     if result:
         if result == 'end':
             return
@@ -354,10 +351,11 @@ def move(data):
             winner = current_user.name
         else:
             winner = session['enemy_name']
-        GAMES[session["game_id"]]['result'] = 'end'
-        return emit('end', {'winner': winner}, room=lobby.id)
-    return emit('moved', {'color': color, 'score': GAMES[session["game_id"]]['score'],
-                          'name': session['enemy_name'], 'game_id': lobby.id}, room=lobby.id)
+        GAMES[session['lobby_id']]['result'] = 'end'
+        return emit('end', {'winner': winner}, room=session['lobby_id'])
+    return emit('moved', {'color': color, 'score': GAMES[session['lobby_id']]['score'],
+                          'name': session['enemy_name'], 'game_id': session['lobby_id']},
+                room=session['lobby_id'])
 
 
 def main():
